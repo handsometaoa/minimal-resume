@@ -307,7 +307,7 @@ const SiteLayout = () => {
     <div className={siteShellClassName}>
       <header className="site-header">
         <div className="site-brand">
-          <img className="site-brand__mark" src="/favicon.svg" alt="" />
+          <img className="site-brand__mark" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" />
           <div>
             <strong>{language === "zh" ? "极简历" : "Minimal Resume"}</strong>
             <span>
