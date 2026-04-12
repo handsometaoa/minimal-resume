@@ -178,3 +178,12 @@ https://<your-name>.github.io/jianli/#/workspace
 - `tsconfig.node.json`
 - `vite.config.ts`
 
+## 授权说明
+
+本项目不是开源商用项目，默认禁止以下行为：
+
+- 一切商业使用
+- 一切二次分发、再发布、镜像传播
+- 基于本项目修改后再次对外发布
+
+当前仓库采用 `UNLICENSED` 方式发布，详细限制见 [LICENSE.md](./LICENSE.md)。
