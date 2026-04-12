@@ -1,0 +1,11 @@
+.resume-page--executive .resume-section__bar {
+  background: linear-gradient(90deg, rgba(31, 41, 55, 0.18), rgba(31, 41, 55, 0.03));
+}
+
+.resume-page--executive .resume-section__marker {
+  background: var(--accent-color);
+}
+
+.resume-page--executive .resume-header__title {
+  letter-spacing: 0.02em;
+}

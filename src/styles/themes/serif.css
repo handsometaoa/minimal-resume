@@ -1,0 +1,15 @@
+.resume-page--serif {
+  font-family: "Source Han Serif SC", "Noto Serif", "Songti SC", serif;
+}
+
+.resume-page--serif .resume-section__bar {
+  background: linear-gradient(90deg, rgba(124, 63, 0, 0.1), rgba(124, 63, 0, 0.02));
+}
+
+.resume-page--serif .resume-section__marker {
+  background: var(--accent-color);
+}
+
+.resume-page--serif .resume-header__title {
+  letter-spacing: 0.02em;
+}

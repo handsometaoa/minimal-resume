@@ -1,0 +1,11 @@
+.resume-page--tech .resume-section__bar {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.1), rgba(37, 99, 235, 0.02));
+}
+
+.resume-page--tech .resume-section__marker {
+  background: var(--accent-color);
+}
+
+.resume-page--tech .resume-header__title {
+  letter-spacing: 0.04em;
+}

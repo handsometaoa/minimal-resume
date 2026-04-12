@@ -1,0 +1,15 @@
+.resume-page--minimal .resume-page__pattern {
+  opacity: 0.24;
+}
+
+.resume-page--minimal .resume-section__bar {
+  background: transparent;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  padding-left: 0;
+}
+
+.resume-page--minimal .resume-section__marker {
+  width: 32px;
+  height: 2px;
+  background: var(--accent-color);
+}
