@@ -15,6 +15,10 @@
 - 多页简历预览
 - 浏览器打印 / 导出 PDF
 
+## 在线查看
+
+https://handsometaoa.github.io/minimal-resume/
+
 ## 技术栈
 
 - React 19
