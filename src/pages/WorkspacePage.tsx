@@ -26,7 +26,7 @@ const pageCopy = {
     gotIt: "知道了",
     printTipTitle: "打印设置提醒",
     printTipTarget: "目标选择“另存为 PDF”",
-    printTipMargins: "边距保持“默认”（页面已内置 A4 版式）",
+    printTipMargins: "边距选择“无”（页面已内置 A4 版式边距）",
     printTipBackground: "展开“更多设置”，勾选“背景图形”——否则模块标题色块与主题色不会出现在 PDF 中",
     printTipScale: "缩放保持“默认”，不要选“适合页面宽度”",
     continuePrint: "继续打印",
@@ -44,7 +44,7 @@ const pageCopy = {
     gotIt: "OK",
     printTipTitle: "Print settings reminder",
     printTipTarget: "Set the destination to “Save as PDF”",
-    printTipMargins: "Keep margins “Default” (A4 layout is built in)",
+    printTipMargins: "Set margins to “None” (A4 layout margins are built in)",
     printTipBackground:
       "Expand “More settings” and enable “Background graphics”, otherwise section bars and accent colors will be missing",
     printTipScale: "Keep scale “Default”; do not use “Fit to page width”",
@@ -212,6 +212,20 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
     window.print();
   }, []);
 
+  // 弹窗打开期间支持 Esc 关闭
+  useEffect(() => {
+    if (hint !== "print-settings") {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setHint("none");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [hint]);
+
   return (
     <main className="page-shell page-shell--workspace">
       <section className="workspace-section">
@@ -232,28 +246,6 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
           </div>
         </div>
 
-        {hint === "print-settings" ? (
-          <div className="workspace-utilitybar panel workspace-printhint">
-            <div className="workspace-printhint__body">
-              <strong>{copy.printTipTitle}</strong>
-              <ul>
-                <li>{copy.printTipTarget}</li>
-                <li>{copy.printTipMargins}</li>
-                <li>{copy.printTipBackground}</li>
-                <li>{copy.printTipScale}</li>
-              </ul>
-            </div>
-            <div className="inline-actions">
-              <button type="button" className="ghost-button" onClick={() => setHint("none")}>
-                {copy.cancel}
-              </button>
-              <button type="button" className="primary-button" onClick={handleContinuePrint}>
-                {copy.continuePrint}
-              </button>
-            </div>
-          </div>
-        ) : null}
-
         {(hint === "embedded-copied" || hint === "embedded-fallback") && (
           <div className="workspace-utilitybar panel workspace-printhint">
             <span>{hint === "embedded-copied" ? copy.embeddedHint : copy.embeddedHintFallback}</span>
@@ -262,6 +254,38 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
             </button>
           </div>
         )}
+
+        {hint === "print-settings" ? (
+          <div
+            className="modal-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label={copy.printTipTitle}
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                setHint("none");
+              }
+            }}
+          >
+            <div className="workspace-printmodal">
+              <h2>{copy.printTipTitle}</h2>
+              <ul>
+                <li>{copy.printTipTarget}</li>
+                <li>{copy.printTipMargins}</li>
+                <li>{copy.printTipBackground}</li>
+                <li>{copy.printTipScale}</li>
+              </ul>
+              <div className="inline-actions">
+                <button type="button" className="ghost-button" onClick={() => setHint("none")}>
+                  {copy.cancel}
+                </button>
+                <button type="button" className="primary-button" onClick={handleContinuePrint}>
+                  {copy.continuePrint}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div className="app-shell app-shell--workspace-clean">
           <EditorPane
