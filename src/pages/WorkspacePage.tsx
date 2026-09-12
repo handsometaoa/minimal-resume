@@ -24,6 +24,13 @@ const pageCopy = {
       "内嵌浏览器无法直接打印，已复制本页地址。请在 Edge / Chrome 中打开后点击“导出 PDF”。",
     embeddedHintFallback: "内嵌浏览器无法直接打印，请复制地址栏链接到 Edge / Chrome 打开后导出。",
     gotIt: "知道了",
+    printTipTitle: "打印设置提醒",
+    printTipTarget: "目标选择“另存为 PDF”",
+    printTipMargins: "边距保持“默认”（页面已内置 A4 版式）",
+    printTipBackground: "展开“更多设置”，勾选“背景图形”——否则模块标题色块与主题色不会出现在 PDF 中",
+    printTipScale: "缩放保持“默认”，不要选“适合页面宽度”",
+    continuePrint: "继续打印",
+    cancel: "取消",
   },
   en: {
     back: "Back to Templates",
@@ -35,6 +42,14 @@ const pageCopy = {
     embeddedHintFallback:
       "The embedded browser cannot print directly. Copy the address into Edge / Chrome and export there.",
     gotIt: "OK",
+    printTipTitle: "Print settings reminder",
+    printTipTarget: "Set the destination to “Save as PDF”",
+    printTipMargins: "Keep margins “Default” (A4 layout is built in)",
+    printTipBackground:
+      "Expand “More settings” and enable “Background graphics”, otherwise section bars and accent colors will be missing",
+    printTipScale: "Keep scale “Default”; do not use “Fit to page width”",
+    continuePrint: "Continue to Print",
+    cancel: "Cancel",
   },
 } satisfies Record<Language, Record<string, string>>;
 
@@ -83,7 +98,7 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
   const editorSectionRefs = useRef<Partial<Record<ManagedSectionId, HTMLElement | null>>>({});
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [{ activeSectionId, sectionConfigs }, setUiState] = useState(loadUiState);
-  const [embeddedHint, setEmbeddedHint] = useState<"none" | "copied" | "fallback">("none");
+  const [hint, setHint] = useState<"none" | "embedded-copied" | "embedded-fallback" | "print-settings">("none");
   const copy = pageCopy[language];
 
   useEffect(() => {
@@ -175,7 +190,8 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
 
   const handleExportPdf = useCallback(async () => {
     if (!isEmbeddedWebview()) {
-      window.print();
+      // 先展示打印设置提醒（背景图形等），用户确认后再调起打印
+      setHint("print-settings");
       return;
     }
 
@@ -188,7 +204,12 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
       copied = false;
     }
     window.open(window.location.href, "_blank");
-    setEmbeddedHint(copied ? "copied" : "fallback");
+    setHint(copied ? "embedded-copied" : "embedded-fallback");
+  }, []);
+
+  const handleContinuePrint = useCallback(() => {
+    setHint("none");
+    window.print();
   }, []);
 
   return (
@@ -211,18 +232,36 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
           </div>
         </div>
 
-        {embeddedHint !== "none" ? (
+        {hint === "print-settings" ? (
           <div className="workspace-utilitybar panel workspace-printhint">
-            <span>{embeddedHint === "copied" ? copy.embeddedHint : copy.embeddedHintFallback}</span>
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={() => setEmbeddedHint("none")}
-            >
+            <div className="workspace-printhint__body">
+              <strong>{copy.printTipTitle}</strong>
+              <ul>
+                <li>{copy.printTipTarget}</li>
+                <li>{copy.printTipMargins}</li>
+                <li>{copy.printTipBackground}</li>
+                <li>{copy.printTipScale}</li>
+              </ul>
+            </div>
+            <div className="inline-actions">
+              <button type="button" className="ghost-button" onClick={() => setHint("none")}>
+                {copy.cancel}
+              </button>
+              <button type="button" className="primary-button" onClick={handleContinuePrint}>
+                {copy.continuePrint}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {(hint === "embedded-copied" || hint === "embedded-fallback") && (
+          <div className="workspace-utilitybar panel workspace-printhint">
+            <span>{hint === "embedded-copied" ? copy.embeddedHint : copy.embeddedHintFallback}</span>
+            <button type="button" className="ghost-button" onClick={() => setHint("none")}>
               {copy.gotIt}
             </button>
           </div>
-        ) : null}
+        )}
 
         <div className="app-shell app-shell--workspace-clean">
           <EditorPane

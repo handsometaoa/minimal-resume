@@ -548,6 +548,18 @@ button { cursor: pointer; }
   color: #344054;
 }
 
+.workspace-printhint__body strong {
+  font-size: 13px;
+  color: #111827;
+}
+
+.workspace-printhint__body ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 2px;
+}
+
 .workspace-backlink {
   display: inline-flex;
   align-items: center;
