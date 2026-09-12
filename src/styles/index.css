@@ -791,6 +791,22 @@ button { cursor: pointer; }
   color: #667085;
 }
 
+/* A4 等比缩放容器：内部页面始终按真实打印尺寸（794px = 210mm）布局 */
+.resume-page-frame {
+  width: 100%;
+  aspect-ratio: 210 / 297;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+}
+
+.resume-page-frame .resume-page {
+  max-width: none;
+  box-shadow: none;
+  transform-origin: top left;
+}
+
 .resume-measure-layer {
   position: absolute;
   inset: 0 auto auto 0;
@@ -805,6 +821,14 @@ button { cursor: pointer; }
   position: absolute;
   left: -99999px;
   top: 0;
+}
+
+/* 测量包装层用 flow-root 包含子元素外边距（margin 不再折叠穿透），
+   使 offsetHeight 反映真实占位高度 */
+.resume-measure-frame [data-measure-profile],
+.resume-measure-frame [data-measure-header],
+.resume-measure-frame [data-measure-item] {
+  display: flow-root;
 }
 
 .resume-page {
@@ -1091,10 +1115,6 @@ button { cursor: pointer; }
   .theme-preset-grid,
   .grid-two { grid-template-columns: 1fr; }
 
-  .resume-page {
-    width: 100%;
-    padding: 24px 18px 28px;
-  }
   .resume-header,
   .resume-info-row {
     text-align: left;
@@ -1177,7 +1197,17 @@ button { cursor: pointer; }
   .resume-measure-layer {
     display: none !important;
   }
+  .resume-page-frame {
+    width: auto !important;
+    height: auto !important;
+    aspect-ratio: auto;
+    overflow: visible;
+    border-radius: 0;
+    box-shadow: none;
+    background: #fff;
+  }
   .resume-page {
+    transform: none !important;
     width: 210mm !important;
     max-width: none;
     margin: 0;

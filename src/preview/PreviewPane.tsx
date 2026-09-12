@@ -31,14 +31,22 @@ const densityGapMap = {
   airy: 14,
 } as const;
 
-const PAGE_MAX_WIDTH = 820;
-const PAGE_WIDTH_MM = 210;
-const PAGE_HEIGHT_MM = 297;
-const PAGE_PADDING_TOP_MM = 11;
-const PAGE_PADDING_RIGHT_MM = 12;
-const PAGE_PADDING_BOTTOM_MM = 10;
-const PAGE_PADDING_LEFT_MM = 12;
-const PAGE_CONTENT_HEIGHT_RATIO = (PAGE_HEIGHT_MM - PAGE_PADDING_TOP_MM - PAGE_PADDING_BOTTOM_MM) / PAGE_WIDTH_MM;
+const MM_TO_PX = 96 / 25.4;
+// 页面几何固定为真实打印尺寸（A4），预览只做等比缩放，
+// 保证导出 PDF 时的排版与分页测量完全一致。
+const PAGE_WIDTH_PX = Math.round(210 * MM_TO_PX);
+// 可打印内容高度 297 - 11 - 10 = 276mm，预留 4px 取整/亚像素余量
+const PAGE_CONTENT_HEIGHT_PX = Math.floor(276 * MM_TO_PX) - 4;
+
+// offsetHeight 不含外边距，而模块条等元素的外边距会占用页面高度，
+// 测量时必须一并计入，否则导出时内容会比测量值偏高。
+const measureHeightWithMargins = (element: HTMLElement | null): number | null => {
+  if (!element) return null;
+  const style = window.getComputedStyle(element);
+  const marginTop = Number.parseFloat(style.marginTop) || 0;
+  const marginBottom = Number.parseFloat(style.marginBottom) || 0;
+  return element.offsetHeight + marginTop + marginBottom;
+};
 
 const SectionBar = ({ title }: { title: string }) => (
   <div className="resume-section__bar">
@@ -92,7 +100,7 @@ export const PreviewPane = ({
   const labels = previewCopy[language];
   const themePreset = getThemePreset(theme.themeId);
   const measureLayerRef = useRef<HTMLDivElement>(null);
-  const [pageWidth, setPageWidth] = useState(PAGE_MAX_WIDTH);
+  const [displayScale, setDisplayScale] = useState(1);
   const [profileHeight, setProfileHeight] = useState(FALLBACK_PROFILE_HEIGHT);
   const [headerHeights, setHeaderHeights] = useState<Partial<Record<PreviewSectionId, number>>>({});
   const [itemHeights, setItemHeights] = useState<Record<string, number>>({});
@@ -110,17 +118,17 @@ export const PreviewPane = ({
   const pageStyle = useMemo(
     () =>
       ({
+        "--page-width": `${PAGE_WIDTH_PX}px`,
+        "--page-padding-top": "11mm",
+        "--page-padding-right": "12mm",
+        "--page-padding-bottom": "10mm",
+        "--page-padding-left": "12mm",
         "--accent-color": theme.accentColor,
         "--heading-size": `${theme.headingSize}px`,
         "--info-line-height": theme.infoLineHeight,
         "--section-spacing": `${theme.sectionSpacing}px`,
-        "--page-width": `${pageWidth}px`,
-        "--page-padding-top": `${(pageWidth * PAGE_PADDING_TOP_MM) / PAGE_WIDTH_MM}px`,
-        "--page-padding-right": `${(pageWidth * PAGE_PADDING_RIGHT_MM) / PAGE_WIDTH_MM}px`,
-        "--page-padding-bottom": `${(pageWidth * PAGE_PADDING_BOTTOM_MM) / PAGE_WIDTH_MM}px`,
-        "--page-padding-left": `${(pageWidth * PAGE_PADDING_LEFT_MM) / PAGE_WIDTH_MM}px`,
       }) as CSSProperties,
-    [pageWidth, theme.accentColor, theme.headingSize, theme.infoLineHeight, theme.sectionSpacing],
+    [theme.accentColor, theme.headingSize, theme.infoLineHeight, theme.sectionSpacing],
   );
 
   const primaryInfo = useMemo(
@@ -291,14 +299,14 @@ export const PreviewPane = ({
       return;
     }
 
-    const updateWidth = () => {
-      const nextWidth = Math.min(PAGE_MAX_WIDTH, Math.max(320, Math.floor(node.clientWidth - 24)));
-      setPageWidth(nextWidth);
+    const updateScale = () => {
+      const available = Math.max(320, Math.floor(node.clientWidth - 24));
+      setDisplayScale(Math.min(1, available / PAGE_WIDTH_PX));
     };
 
-    updateWidth();
+    updateScale();
 
-    const observer = new ResizeObserver(updateWidth);
+    const observer = new ResizeObserver(updateScale);
     observer.observe(node);
 
     return () => observer.disconnect();
@@ -311,11 +319,12 @@ export const PreviewPane = ({
     }
 
     const nextProfileHeight =
-      layer.querySelector<HTMLElement>("[data-measure-profile]")?.offsetHeight ?? FALLBACK_PROFILE_HEIGHT;
+      measureHeightWithMargins(layer.querySelector<HTMLElement>("[data-measure-profile]")) ??
+      FALLBACK_PROFILE_HEIGHT;
 
     const nextHeaderHeights = visibleSections.reduce<Partial<Record<PreviewSectionId, number>>>((acc, section) => {
       acc[section.id] =
-        layer.querySelector<HTMLElement>(`[data-measure-header="${section.id}"]`)?.offsetHeight ??
+        measureHeightWithMargins(layer.querySelector<HTMLElement>(`[data-measure-header="${section.id}"]`)) ??
         FALLBACK_HEADER_HEIGHT;
       return acc;
     }, {});
@@ -323,7 +332,7 @@ export const PreviewPane = ({
     const nextItemHeights = visibleSections.reduce<Record<string, number>>((acc, section) => {
       section.items.forEach((item) => {
         acc[item.key] =
-          layer.querySelector<HTMLElement>(`[data-measure-item="${item.key}"]`)?.offsetHeight ??
+          measureHeightWithMargins(layer.querySelector<HTMLElement>(`[data-measure-item="${item.key}"]`)) ??
           FALLBACK_ITEM_HEIGHT;
       });
       return acc;
@@ -343,15 +352,15 @@ export const PreviewPane = ({
         sections: visibleSections,
         headerHeights,
         itemHeights,
-        maxContentHeight: Math.max(480, Math.round(pageWidth * PAGE_CONTENT_HEIGHT_RATIO)),
+        maxContentHeight: PAGE_CONTENT_HEIGHT_PX,
         sectionSpacing: Number(theme.sectionSpacing) || 18,
+        sectionDividerGap: theme.showDividers ? 2 : 0,
         blockGap: densityGapMap[theme.density],
       }),
     [
       headerHeights,
       itemHeights,
       orderedSections,
-      pageWidth,
       profileHeight,
       profileNode,
       theme.density,
@@ -365,45 +374,51 @@ export const PreviewPane = ({
       <div ref={previewContainerRef} className="preview-canvas">
         <div className="preview-pages">
           {pages.map((page, index) => (
-            <article key={`page-${index}`} className="resume-page-sheet">
+            <article
+              key={`page-${index}`}
+              className="resume-page-sheet"
+              style={{ width: `${PAGE_WIDTH_PX * displayScale}px` }}
+            >
               <div className="resume-page-sheet__meta">{buildPageLabel(language, index)}</div>
-              <div
-                className={pageClassName}
-                style={pageStyle}
-              >
-                <div className="resume-page__pattern" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
+              <div className="resume-page-frame">
+                <div
+                  className={pageClassName}
+                  style={{ ...pageStyle, transform: `scale(${displayScale})` } as CSSProperties}
+                >
+                  <div className="resume-page__pattern" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+
+                  {page.chunks.map((chunk, chunkIndex) => {
+                    if (chunk.kind === "profile") {
+                      return <div key={`profile-${index}`}>{chunk.node}</div>;
+                    }
+
+                    return (
+                      <section
+                        key={`${chunk.sectionId}-${chunkIndex}`}
+                        className="resume-section"
+                        onPointerDown={() => onSectionInteract(chunk.sectionId)}
+                      >
+                        <SectionBar title={chunk.title} />
+                        <div className="resume-section__content">
+                          {chunk.items.map((item) => (
+                            <div key={item.key}>{item.node}</div>
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  })}
                 </div>
-
-                {page.chunks.map((chunk, chunkIndex) => {
-                  if (chunk.kind === "profile") {
-                    return <div key={`profile-${index}`}>{chunk.node}</div>;
-                  }
-
-                  return (
-                    <section
-                      key={`${chunk.sectionId}-${chunkIndex}`}
-                      className="resume-section"
-                      onPointerDown={() => onSectionInteract(chunk.sectionId)}
-                    >
-                      <SectionBar title={chunk.title} />
-                      <div className="resume-section__content">
-                        {chunk.items.map((item) => (
-                          <div key={item.key}>{item.node}</div>
-                        ))}
-                      </div>
-                    </section>
-                  );
-                })}
               </div>
             </article>
           ))}
         </div>
 
         <div className="resume-measure-layer" aria-hidden="true">
-          <div ref={measureLayerRef} className="resume-measure-frame" style={{ width: `${pageWidth}px` }}>
+          <div ref={measureLayerRef} className="resume-measure-frame" style={{ width: `${PAGE_WIDTH_PX}px` }}>
             <div
               className={pageClassName}
               style={pageStyle}

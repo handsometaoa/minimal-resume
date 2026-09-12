@@ -29,6 +29,8 @@ export type PageChunk = ProfileChunk | PageSectionChunk;
 export interface ResumePage {
   chunks: PageChunk[];
   height: number;
+  /** 当前页是否已放置过模块（用于判断分隔线间距是否生效） */
+  hasSection: boolean;
 }
 
 export const FALLBACK_PROFILE_HEIGHT = 220;
@@ -43,7 +45,10 @@ export interface PaginateInput {
   headerHeights: Partial<Record<PreviewSectionId, number>>;
   itemHeights: Record<string, number>;
   maxContentHeight: number;
+  /** 每个模块的 margin-top（真实渲染中总是生效） */
   sectionSpacing: number;
+  /** 分隔线模式下相邻模块之间的额外间距（仅同页且前面还有模块时生效） */
+  sectionDividerGap: number;
   blockGap: number;
 }
 
@@ -62,14 +67,15 @@ export const paginateResume = (input: PaginateInput): ResumePage[] => {
     itemHeights,
     maxContentHeight,
     sectionSpacing,
+    sectionDividerGap,
     blockGap,
   } = input;
 
-  const pages: ResumePage[] = [{ chunks: [], height: 0 }];
+  const pages: ResumePage[] = [{ chunks: [], height: 0, hasSection: false }];
   let currentPage = pages[0];
 
   const startNewPage = () => {
-    currentPage = { chunks: [], height: 0 };
+    currentPage = { chunks: [], height: 0, hasSection: false };
     pages.push(currentPage);
   };
 
@@ -86,7 +92,8 @@ export const paginateResume = (input: PaginateInput): ResumePage[] => {
       const headerHeight = headerHeights[section.id] ?? FALLBACK_HEADER_HEIGHT;
 
       if (!currentChunk) {
-        const topSpacing = currentPage.height > 0 ? sectionSpacing : 0;
+        // 真实渲染中模块 margin-top 总是生效；分隔线间距仅在同页且前面还有模块时出现
+        const topSpacing = sectionSpacing + (currentPage.hasSection ? sectionDividerGap : 0);
         const neededHeight = topSpacing + headerHeight + itemHeight;
 
         if (currentPage.height > 0 && currentPage.height + neededHeight > maxContentHeight) {
@@ -101,7 +108,8 @@ export const paginateResume = (input: PaginateInput): ResumePage[] => {
         };
 
         currentPage.chunks.push(chunk);
-        currentPage.height += (currentPage.height > 0 ? sectionSpacing : 0) + headerHeight + itemHeight;
+        currentPage.height += topSpacing + headerHeight + itemHeight;
+        currentPage.hasSection = true;
         currentChunk = chunk;
         return;
       }
@@ -117,7 +125,9 @@ export const paginateResume = (input: PaginateInput): ResumePage[] => {
         };
 
         currentPage.chunks.push(chunk);
-        currentPage.height += headerHeight + itemHeight;
+        // 续页上模块元素同样是页面首个 section，margin-top 仍然生效
+        currentPage.height += sectionSpacing + headerHeight + itemHeight;
+        currentPage.hasSection = true;
         currentChunk = chunk;
         return;
       }
