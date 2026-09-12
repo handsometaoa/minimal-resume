@@ -542,6 +542,12 @@ button { cursor: pointer; }
   justify-content: flex-end;
 }
 
+.workspace-printhint {
+  grid-template-columns: 1fr auto;
+  font-size: 13px;
+  color: #344054;
+}
+
 .workspace-backlink {
   display: inline-flex;
   align-items: center;
@@ -1180,7 +1186,7 @@ button { cursor: pointer; }
   }
   .resume-page-sheet {
     display: block;
-    width: 210mm;
+    width: 210mm !important;
     margin: 0;
     padding: 0;
     break-inside: avoid-page;

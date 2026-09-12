@@ -20,12 +20,21 @@ const pageCopy = {
     sample: "载入示例",
     clear: "清空内容",
     export: "导出 PDF",
+    embeddedHint:
+      "内嵌浏览器无法直接打印，已复制本页地址。请在 Edge / Chrome 中打开后点击“导出 PDF”。",
+    embeddedHintFallback: "内嵌浏览器无法直接打印，请复制地址栏链接到 Edge / Chrome 打开后导出。",
+    gotIt: "知道了",
   },
   en: {
     back: "Back to Templates",
     sample: "Load Sample",
     clear: "Clear",
     export: "Export PDF",
+    embeddedHint:
+      "The embedded browser cannot print directly. The page link is copied — open it in Edge / Chrome and export there.",
+    embeddedHintFallback:
+      "The embedded browser cannot print directly. Copy the address into Edge / Chrome and export there.",
+    gotIt: "OK",
   },
 } satisfies Record<Language, Record<string, string>>;
 
@@ -62,6 +71,11 @@ const loadUiState = (): StoredUiState => {
   }
 };
 
+// Electron 等内嵌 WebView 的 window.print() 走系统原生打印通路，
+// 已知会输出空白页；导出必须引导到真实浏览器完成。
+const isEmbeddedWebview = (): boolean =>
+  typeof navigator !== "undefined" && /electron/i.test(navigator.userAgent);
+
 const WorkspaceContent = ({ language }: { language: Language }) => {
   const { resume, dispatch, loadSample, clearResume } = useResumeState();
   const [searchParams] = useSearchParams();
@@ -69,6 +83,7 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
   const editorSectionRefs = useRef<Partial<Record<ManagedSectionId, HTMLElement | null>>>({});
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [{ activeSectionId, sectionConfigs }, setUiState] = useState(loadUiState);
+  const [embeddedHint, setEmbeddedHint] = useState<"none" | "copied" | "fallback">("none");
   const copy = pageCopy[language];
 
   useEffect(() => {
@@ -158,6 +173,24 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
     });
   }, []);
 
+  const handleExportPdf = useCallback(async () => {
+    if (!isEmbeddedWebview()) {
+      window.print();
+      return;
+    }
+
+    // 内嵌 WebView：复制地址并尝试唤起系统浏览器，打印必须在真实浏览器中完成
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      copied = true;
+    } catch {
+      copied = false;
+    }
+    window.open(window.location.href, "_blank");
+    setEmbeddedHint(copied ? "copied" : "fallback");
+  }, []);
+
   return (
     <main className="page-shell page-shell--workspace">
       <section className="workspace-section">
@@ -172,11 +205,24 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
             <button type="button" className="ghost-button" onClick={clearResume}>
               {copy.clear}
             </button>
-            <button type="button" className="primary-button" onClick={() => window.print()}>
+            <button type="button" className="primary-button" onClick={handleExportPdf}>
               {copy.export}
             </button>
           </div>
         </div>
+
+        {embeddedHint !== "none" ? (
+          <div className="workspace-utilitybar panel workspace-printhint">
+            <span>{embeddedHint === "copied" ? copy.embeddedHint : copy.embeddedHintFallback}</span>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => setEmbeddedHint("none")}
+            >
+              {copy.gotIt}
+            </button>
+          </div>
+        ) : null}
 
         <div className="app-shell app-shell--workspace-clean">
           <EditorPane
