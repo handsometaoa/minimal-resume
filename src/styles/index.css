@@ -943,10 +943,11 @@ button { cursor: pointer; }
   text-align: left;
 }
 
-.resume-section {
+/* 流式分页的块容器：flow-root 包含内部外边距，间距由引擎显式控制 */
+.resume-block {
   position: relative;
   z-index: 1;
-  margin-top: var(--section-spacing);
+  display: flow-root;
   cursor: pointer;
 }
 
@@ -961,8 +962,6 @@ button { cursor: pointer; }
 
 .resume-section__marker { width: 5px; height: 28px; background: #111; }
 .resume-section__bar h3 { margin: 0; font-size: 18px; color: #111; }
-.resume-section__content { display: flex; flex-direction: column; gap: var(--block-gap); }
-.resume-page--with-dividers .resume-section + .resume-section { padding-top: 2px; }
 
 .resume-entry {
   display: flex;
@@ -1218,5 +1217,5 @@ button { cursor: pointer; }
     overflow: hidden;
   }
   .resume-page__pattern { display: none; }
-  .resume-entry { break-inside: avoid; }
+  .resume-block { break-inside: avoid; }
 }
