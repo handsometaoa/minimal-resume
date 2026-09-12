@@ -9,28 +9,6 @@ export const defaultSectionConfigs = (): SectionConfig[] => [
   { id: "customSections", title: "custom", visible: true },
 ];
 
-export const moveSection = (
-  configs: SectionConfig[],
-  sectionId: ManagedSectionId,
-  direction: "up" | "down",
-): SectionConfig[] => {
-  const index = configs.findIndex((item) => item.id === sectionId);
-
-  if (index < 0) {
-    return configs;
-  }
-
-  const targetIndex = direction === "up" ? index - 1 : index + 1;
-  if (targetIndex < 0 || targetIndex >= configs.length) {
-    return configs;
-  }
-
-  const next = [...configs];
-  const [current] = next.splice(index, 1);
-  next.splice(targetIndex, 0, current);
-  return next;
-};
-
 export const reorderSection = (
   configs: SectionConfig[],
   fromSectionId: ManagedSectionId,

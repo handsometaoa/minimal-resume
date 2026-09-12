@@ -4,7 +4,9 @@ const escapeHtml = (value: string): string =>
   value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 
 const applyInlineMarkdown = (text: string): string => {
   let output = escapeHtml(text);
@@ -27,9 +29,9 @@ export const renderMarkdown = (value: string): ReactNode[] => {
 
   const flushParagraph = () => {
     if (!paragraph.length) return;
-    const text = paragraph.join("<br />");
+    const html = paragraph.map((line) => applyInlineMarkdown(line)).join("<br />");
     nodes.push(
-      <p key={`p-${nodes.length}`} dangerouslySetInnerHTML={{ __html: applyInlineMarkdown(text) }} />,
+      <p key={`p-${nodes.length}`} dangerouslySetInnerHTML={{ __html: html }} />,
     );
     paragraph = [];
   };

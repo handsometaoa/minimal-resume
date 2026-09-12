@@ -90,6 +90,8 @@ export interface CustomSection {
   content: string;
 }
 
+export type CollectionKey = "education" | "experience" | "projects" | "skills" | "customSections";
+
 export interface ResumeData {
   profile: Profile;
   education: EducationItem[];

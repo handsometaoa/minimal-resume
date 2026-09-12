@@ -57,11 +57,11 @@ npm run preview
 
 ```text
 src/
-  editor/       编辑区
-  preview/      预览区
-  pages/        页面入口
-  state/        简历状态管理
-  lib/          模板、示例数据与工具函数
+  pages/        页面入口（首页、模板页、工作台、关于页）
+  editor/       编辑区（编辑面板、模块卡片、文案）
+  preview/      预览区（A4 多页预览、分页算法、文案）
+  state/        简历状态管理（reducer + 本地持久化）
+  lib/          模板预设、示例数据与工具函数
   styles/       全局样式与主题样式
 public/
   favicon.svg   网站图标

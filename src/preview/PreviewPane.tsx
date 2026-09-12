@@ -1,40 +1,23 @@
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { renderMarkdown } from "../lib/renderMarkdown";
 import { getThemePreset } from "../lib/themePresets";
 import type { Language, PreviewSectionId, ResumeData, SectionConfig } from "../types";
+import { buildPageLabel, previewCopy } from "./copy";
+import {
+  FALLBACK_HEADER_HEIGHT,
+  FALLBACK_ITEM_HEIGHT,
+  FALLBACK_PROFILE_HEIGHT,
+  paginateResume,
+  type SectionDef,
+} from "./paginate";
 
 interface PreviewPaneProps {
   language: Language;
   resume: ResumeData;
-  previewContainerRef: RefObject<HTMLDivElement | null>;
+  previewContainerRef: React.RefObject<HTMLDivElement | null>;
   orderedSections: SectionConfig[];
   onSectionInteract: (sectionId: PreviewSectionId) => void;
 }
-
-interface SectionItemDef {
-  key: string;
-  node: ReactNode;
-}
-
-interface SectionDef {
-  id: PreviewSectionId;
-  title: string;
-  items: SectionItemDef[];
-}
-
-interface PageSectionChunk {
-  kind: "section";
-  sectionId: PreviewSectionId;
-  title: string;
-  items: SectionItemDef[];
-}
-
-interface ProfileChunk {
-  kind: "profile";
-  node: ReactNode;
-}
-
-type PageChunk = ProfileChunk | PageSectionChunk;
 
 const densityClassMap = {
   compact: "density-compact",
@@ -56,70 +39,6 @@ const PAGE_PADDING_RIGHT_MM = 12;
 const PAGE_PADDING_BOTTOM_MM = 10;
 const PAGE_PADDING_LEFT_MM = 12;
 const PAGE_CONTENT_HEIGHT_RATIO = (PAGE_HEIGHT_MM - PAGE_PADDING_TOP_MM - PAGE_PADDING_BOTTOM_MM) / PAGE_WIDTH_MM;
-const FALLBACK_PROFILE_HEIGHT = 220;
-const FALLBACK_HEADER_HEIGHT = 52;
-const FALLBACK_ITEM_HEIGHT = 84;
-
-const copy = {
-  zh: {
-    preview: "简历预览",
-    status: "右侧按 A4 多页预览，导出时仅输出简历正文。",
-    phone: "电话",
-    email: "邮箱",
-    website: "网站",
-    location: "城市",
-    age: "年龄",
-    gender: "性别",
-    ethnicity: "民族",
-    politicalStatus: "政治面貌",
-    currentStatus: "当前状态",
-    jobIntent: "求职意向",
-    profileName: "你的姓名",
-    profileTitle: "求职岗位",
-    avatar: "头像",
-    education: "教育经历",
-    experience: "工作经历",
-    projects: "项目经历",
-    skills: "专业技能",
-    custom: "补充信息",
-    school: "学校名称",
-    company: "公司名称",
-    role: "岗位名称",
-    project: "项目名称",
-    projectRole: "负责角色",
-    page: "第",
-    pageSuffix: "页",
-  },
-  en: {
-    preview: "Resume Preview",
-    status: "The preview uses real A4-style pages, and export prints resume pages only.",
-    phone: "Phone",
-    email: "Email",
-    website: "Website",
-    location: "Location",
-    age: "Age",
-    gender: "Gender",
-    ethnicity: "Ethnicity",
-    politicalStatus: "Political",
-    currentStatus: "Availability",
-    jobIntent: "Target",
-    profileName: "Your Name",
-    profileTitle: "Target Role",
-    avatar: "Avatar",
-    education: "Education",
-    experience: "Experience",
-    projects: "Projects",
-    skills: "Skills",
-    custom: "Additional",
-    school: "School",
-    company: "Company",
-    role: "Role",
-    project: "Project",
-    projectRole: "Role",
-    page: "Page ",
-    pageSuffix: "",
-  },
-} satisfies Record<Language, Record<string, string>>;
 
 const SectionBar = ({ title }: { title: string }) => (
   <div className="resume-section__bar">
@@ -162,9 +81,6 @@ const ResumeEntry = ({
   </article>
 );
 
-const buildPageLabel = (language: Language, index: number): string =>
-  language === "zh" ? `第 ${index + 1} 页` : `Page ${index + 1}`;
-
 export const PreviewPane = ({
   language,
   resume,
@@ -173,7 +89,7 @@ export const PreviewPane = ({
   onSectionInteract,
 }: PreviewPaneProps) => {
   const { profile, theme } = resume;
-  const labels = copy[language];
+  const labels = previewCopy[language];
   const themePreset = getThemePreset(theme.themeId);
   const measureLayerRef = useRef<HTMLDivElement>(null);
   const [pageWidth, setPageWidth] = useState(PAGE_MAX_WIDTH);
@@ -187,7 +103,6 @@ export const PreviewPane = ({
     `resume-page--${themePreset.id}`,
     `resume-page--avatar-${theme.avatarStyle}`,
     theme.showDividers ? "resume-page--with-dividers" : "",
-    themePreset.id === "serif" ? "resume-page--serif" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -236,7 +151,7 @@ export const PreviewPane = ({
 
   const profileNode = useMemo(
     () => (
-      <header className="resume-header zh-header" onPointerDown={() => onSectionInteract("profile")}>
+      <header className="resume-header" onPointerDown={() => onSectionInteract("profile")}>
         <div className="resume-header__title-block">
           <div className="resume-header__title-text">
             <h1>{profile.fullName || labels.profileName}</h1>
@@ -244,9 +159,9 @@ export const PreviewPane = ({
           </div>
           {theme.showAvatar ? (
             profile.avatarUrl ? (
-              <img className="resume-avatar zh-avatar" src={profile.avatarUrl} alt={profile.fullName} />
+              <img className="resume-avatar" src={profile.avatarUrl} alt={profile.fullName} />
             ) : (
-              <div className="resume-avatar zh-avatar zh-avatar--placeholder">{labels.avatar}</div>
+              <div className="resume-avatar resume-avatar--placeholder">{labels.avatar}</div>
             )
           ) : null}
         </div>
@@ -254,7 +169,7 @@ export const PreviewPane = ({
         <InfoRow items={secondaryInfo} />
         <InfoRow items={tertiaryInfo} />
         {profile.summary ? (
-          <div className="resume-summary zh-summary markdown-content">{renderMarkdown(profile.summary)}</div>
+          <div className="resume-summary markdown-content">{renderMarkdown(profile.summary)}</div>
         ) : null}
       </header>
     ),
@@ -419,86 +334,31 @@ export const PreviewPane = ({
     setItemHeights(nextItemHeights);
   }, [pageClassName, pageStyle, profileNode, visibleSections]);
 
-  const pages = useMemo(() => {
-    const maxContentHeight = Math.max(480, Math.round(pageWidth * PAGE_CONTENT_HEIGHT_RATIO));
-    const sectionSpacing = Number(theme.sectionSpacing) || 18;
-    const blockGap = densityGapMap[theme.density];
-    const hasProfile = orderedSections.some((section) => section.id === "profile");
-
-    const nextPages: Array<{ chunks: PageChunk[]; height: number }> = [{ chunks: [], height: 0 }];
-    let currentPage = nextPages[0];
-
-    const startNewPage = () => {
-      currentPage = { chunks: [], height: 0 };
-      nextPages.push(currentPage);
-    };
-
-    if (hasProfile) {
-      currentPage.chunks.push({ kind: "profile", node: profileNode });
-      currentPage.height += profileHeight;
-    }
-
-    visibleSections.forEach((section) => {
-      let currentChunk: PageSectionChunk | null = null;
-
-      section.items.forEach((item) => {
-        const itemHeight = itemHeights[item.key] ?? FALLBACK_ITEM_HEIGHT;
-        const headerHeight = headerHeights[section.id] ?? FALLBACK_HEADER_HEIGHT;
-
-        if (!currentChunk) {
-          const topSpacing = currentPage.height > 0 ? sectionSpacing : 0;
-          const neededHeight = topSpacing + headerHeight + itemHeight;
-
-          if (currentPage.height > 0 && currentPage.height + neededHeight > maxContentHeight) {
-            startNewPage();
-          }
-
-          const chunk: PageSectionChunk = {
-            kind: "section",
-            sectionId: section.id,
-            title: section.title,
-            items: [item],
-          };
-
-          currentPage.chunks.push(chunk);
-          currentPage.height += (currentPage.height > 0 ? sectionSpacing : 0) + headerHeight + itemHeight;
-          currentChunk = chunk;
-          return;
-        }
-
-        if (currentPage.height + blockGap + itemHeight > maxContentHeight) {
-          startNewPage();
-
-          const chunk: PageSectionChunk = {
-            kind: "section",
-            sectionId: section.id,
-            title: section.title,
-            items: [item],
-          };
-
-          currentPage.chunks.push(chunk);
-          currentPage.height += headerHeight + itemHeight;
-          currentChunk = chunk;
-          return;
-        }
-
-        currentChunk.items.push(item);
-        currentPage.height += blockGap + itemHeight;
-      });
-    });
-
-    return nextPages.filter((page) => page.chunks.length);
-  }, [
-    headerHeights,
-    itemHeights,
-    orderedSections,
-    pageWidth,
-    profileHeight,
-    profileNode,
-    theme.density,
-    theme.sectionSpacing,
-    visibleSections,
-  ]);
+  const pages = useMemo(
+    () =>
+      paginateResume({
+        profileNode,
+        profileHeight,
+        hasProfile: orderedSections.some((section) => section.id === "profile"),
+        sections: visibleSections,
+        headerHeights,
+        itemHeights,
+        maxContentHeight: Math.max(480, Math.round(pageWidth * PAGE_CONTENT_HEIGHT_RATIO)),
+        sectionSpacing: Number(theme.sectionSpacing) || 18,
+        blockGap: densityGapMap[theme.density],
+      }),
+    [
+      headerHeights,
+      itemHeights,
+      orderedSections,
+      pageWidth,
+      profileHeight,
+      profileNode,
+      theme.density,
+      theme.sectionSpacing,
+      visibleSections,
+    ],
+  );
 
   return (
     <section className="preview-shell">

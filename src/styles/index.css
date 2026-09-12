@@ -859,7 +859,7 @@ button { cursor: pointer; }
 .resume-page__pattern span:nth-child(2) { width: 250px; height: 250px; top: 118px; right: -12px; }
 .resume-page__pattern span:nth-child(3) { width: 340px; height: 340px; top: -72px; right: 74px; }
 
-.zh-header {
+.resume-header {
   position: relative;
   z-index: 1;
   display: flex;
@@ -870,7 +870,7 @@ button { cursor: pointer; }
   cursor: pointer;
 }
 
-.zh-header h1 {
+.resume-header h1 {
   margin: 0;
   font-size: var(--heading-size);
   font-weight: 700;
@@ -885,7 +885,7 @@ button { cursor: pointer; }
   color: var(--accent-color);
 }
 
-.zh-avatar {
+.resume-avatar {
   width: 88px;
   height: 112px;
   display: grid;
@@ -895,8 +895,8 @@ button { cursor: pointer; }
   color: #667085;
 }
 
-.resume-page--avatar-square .zh-avatar { border-radius: 2px; }
-.resume-page--avatar-rounded .zh-avatar { border-radius: 18px; }
+.resume-page--avatar-square .resume-avatar { border-radius: 2px; }
+.resume-page--avatar-rounded .resume-avatar { border-radius: 18px; }
 
 .resume-info-row {
   display: flex;
@@ -912,7 +912,7 @@ button { cursor: pointer; }
   color: #8b8b8b;
 }
 
-.zh-summary {
+.resume-summary {
   margin: 6px 0 0;
   max-width: 100%;
   color: #374151;
@@ -1095,13 +1095,13 @@ button { cursor: pointer; }
     width: 100%;
     padding: 24px 18px 28px;
   }
-  .zh-header,
+  .resume-header,
   .resume-info-row {
     text-align: left;
     justify-content: flex-start;
   }
 
-  .zh-summary {
+  .resume-summary {
     max-width: 100%;
     margin-left: 0;
     margin-right: 0;

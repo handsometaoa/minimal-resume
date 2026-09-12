@@ -8,20 +8,22 @@ import {
   type PropsWithChildren,
 } from "react";
 import { createId } from "../lib/ids";
+import { isThemeId, getThemePreset } from "../lib/themePresets";
 import { createSampleResume } from "../lib/sampleResume";
 import type {
+  CollectionKey,
   CustomSection,
   EducationItem,
   ExperienceItem,
   Language,
+  Profile,
   ProjectItem,
   ResumeData,
+  ResumeTheme,
   SkillItem,
 } from "../types";
 
 const STORAGE_KEY = "minimal-resume:data";
-
-type CollectionKey = "education" | "experience" | "projects" | "skills" | "customSections";
 
 type CollectionItemMap = {
   education: EducationItem;
@@ -33,8 +35,9 @@ type CollectionItemMap = {
 
 type Action =
   | { type: "reset"; payload: ResumeData }
-  | { type: "update-profile"; field: keyof ResumeData["profile"]; value: string }
-  | { type: "update-theme"; field: keyof ResumeData["theme"]; value: string | boolean }
+  | { type: "update-profile"; field: keyof Profile; value: string }
+  | { type: "update-theme"; field: keyof ResumeTheme; value: string | boolean }
+  | { type: "apply-theme"; theme: ResumeTheme }
   | { type: "add-item"; collection: CollectionKey }
   | {
       type: "update-item";
@@ -60,54 +63,28 @@ const normalizeItemContent = <T extends LegacyTextListItem>(item: T): T & { cont
     typeof item.content === "string"
       ? item.content
       : Array.isArray(item.bullets)
-        ? item.bullets.filter((bullet) => typeof bullet === "string" && bullet.trim()).map((bullet) => `- ${bullet}`).join("\n")
+        ? item.bullets
+            .filter((bullet) => typeof bullet === "string" && bullet.trim())
+            .map((bullet) => `- ${bullet}`)
+            .join("\n")
         : "",
 });
 
-const normalizeResume = (resume: ResumeData): ResumeData => ({
-  ...resume,
-  profile: {
-    ...resume.profile,
-    summary: normalizeMarkdownText(resume.profile.summary),
-  },
-  education: resume.education.map((item) => ({
-    ...item,
-    details: normalizeMarkdownText(item.details),
-  })),
-  experience: resume.experience.map((item) => normalizeItemContent(item)),
-  projects: resume.projects.map((item) => normalizeItemContent(item)),
-  customSections: resume.customSections.map((item) => ({
-    ...item,
-    content: normalizeMarkdownText(item.content),
-  })),
-});
-
-const cloneSample = (language: Language): ResumeData => structuredClone(createSampleResume(language));
-
-const createBlankResume = (language: Language, theme: ResumeData["theme"]): ResumeData => ({
-  ...cloneSample(language),
-  profile: {
-    fullName: "",
-    title: "",
-    location: "",
-    phone: "",
-    email: "",
-    website: "",
-    age: "",
-    gender: "",
-    ethnicity: "",
-    politicalStatus: "",
-    currentStatus: "",
-    jobIntent: "",
-    summary: "",
-    avatarUrl: "",
-  },
-  education: [],
-  experience: [],
-  projects: [],
-  skills: [],
-  customSections: [],
-  theme,
+const createEmptyProfile = (): Profile => ({
+  fullName: "",
+  title: "",
+  location: "",
+  phone: "",
+  email: "",
+  website: "",
+  age: "",
+  gender: "",
+  ethnicity: "",
+  politicalStatus: "",
+  currentStatus: "",
+  jobIntent: "",
+  summary: "",
+  avatarUrl: "",
 });
 
 const createEmptyItem = <T extends CollectionKey>(collection: T): CollectionItemMap[T] => {
@@ -154,6 +131,61 @@ const createEmptyItem = <T extends CollectionKey>(collection: T): CollectionItem
   }
 };
 
+const normalizeProfile = (profile: Profile | undefined): Profile => ({
+  ...createEmptyProfile(),
+  ...profile,
+  summary: normalizeMarkdownText(profile?.summary),
+  avatarUrl: normalizeMarkdownText(profile?.avatarUrl),
+});
+
+const normalizeTheme = (theme: ResumeTheme | undefined): ResumeTheme => {
+  const preset = getThemePreset(isThemeId(theme?.themeId) ? theme.themeId : "classic").values;
+  return { ...preset, ...theme, themeId: preset.themeId };
+};
+
+const normalizeCollection = <T,>(items: unknown): T[] =>
+  (Array.isArray(items) ? items : []).filter(
+    (item): item is T => Boolean(item) && typeof item === "object",
+  );
+
+const normalizeResume = (resume: ResumeData): ResumeData => ({
+  profile: normalizeProfile(resume?.profile),
+  theme: normalizeTheme(resume?.theme),
+  education: normalizeCollection<EducationItem>(resume?.education).map((item) => ({
+    ...createEmptyItem("education"),
+    ...item,
+    details: normalizeMarkdownText(item.details),
+  })),
+  experience: normalizeCollection<ExperienceItem>(resume?.experience).map((item) => ({
+    ...createEmptyItem("experience"),
+    ...normalizeItemContent(item),
+  })),
+  projects: normalizeCollection<ProjectItem>(resume?.projects).map((item) => ({
+    ...createEmptyItem("projects"),
+    ...normalizeItemContent(item),
+  })),
+  skills: normalizeCollection<SkillItem>(resume?.skills).map((item) => ({
+    ...createEmptyItem("skills"),
+    ...item,
+  })),
+  customSections: normalizeCollection<CustomSection>(resume?.customSections).map((item) => ({
+    ...createEmptyItem("customSections"),
+    ...item,
+    content: normalizeMarkdownText(item.content),
+  })),
+});
+
+const createBlankResume = (language: Language, theme: ResumeTheme): ResumeData => ({
+  ...createSampleResume(language),
+  profile: createEmptyProfile(),
+  education: [],
+  experience: [],
+  projects: [],
+  skills: [],
+  customSections: [],
+  theme,
+});
+
 const moveInArray = <T,>(items: T[], index: number, direction: "up" | "down"): T[] => {
   const target = direction === "up" ? index - 1 : index + 1;
 
@@ -186,6 +218,11 @@ const reducer = (state: ResumeData, action: Action): ResumeData => {
           ...state.theme,
           [action.field]: action.value,
         },
+      };
+    case "apply-theme":
+      return {
+        ...state,
+        theme: normalizeTheme(action.theme),
       };
     case "add-item":
       return {
@@ -220,13 +257,13 @@ const reducer = (state: ResumeData, action: Action): ResumeData => {
 const loadInitialState = (language: Language): ResumeData => {
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    return normalizeResume(cloneSample(language));
+    return createSampleResume(language);
   }
 
   try {
     return normalizeResume(JSON.parse(raw) as ResumeData);
   } catch {
-    return normalizeResume(cloneSample(language));
+    return createSampleResume(language);
   }
 };
 
@@ -254,7 +291,7 @@ export const ResumeStateProvider = ({ children, language }: ResumeStateProviderP
     () => ({
       resume,
       dispatch,
-      loadSample: () => dispatch({ type: "reset", payload: cloneSample(language) }),
+      loadSample: () => dispatch({ type: "reset", payload: createSampleResume(language) }),
       clearResume: () =>
         dispatch({
           type: "reset",

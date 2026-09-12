@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { EditorPane } from "../editor/EditorPane";
 import { defaultSectionConfigs, reorderSection } from "../lib/sectionConfigs";
@@ -29,11 +29,16 @@ const pageCopy = {
   },
 } satisfies Record<Language, Record<string, string>>;
 
+const defaultUiState = (): StoredUiState => ({
+  activeSectionId: "profile",
+  sectionConfigs: defaultSectionConfigs(),
+});
+
 const loadUiState = (): StoredUiState => {
   try {
     const raw = window.localStorage.getItem(UI_STORAGE_KEY);
     if (!raw) {
-      return { activeSectionId: "profile", sectionConfigs: defaultSectionConfigs() };
+      return defaultUiState();
     }
 
     const parsed = JSON.parse(raw) as Partial<StoredUiState>;
@@ -53,7 +58,7 @@ const loadUiState = (): StoredUiState => {
       ),
     };
   } catch {
-    return { activeSectionId: "profile", sectionConfigs: defaultSectionConfigs() };
+    return defaultUiState();
   }
 };
 
@@ -79,10 +84,7 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
       return;
     }
 
-    const preset = getThemePreset(theme).values;
-    (Object.entries(preset) as Array<[keyof typeof resume.theme, string | boolean]>).forEach(
-      ([field, value]) => dispatch({ type: "update-theme", field, value }),
-    );
+    dispatch({ type: "apply-theme", theme: getThemePreset(theme).values });
   }, [dispatch, resume.theme.themeId, searchParams]);
 
   const visiblePreviewSections = useMemo(
@@ -90,19 +92,21 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
     [sectionConfigs],
   );
 
-  const activateSection = (sectionId: ManagedSectionId) => {
+  const activateSection = useCallback((sectionId: ManagedSectionId) => {
     setUiState((current) => ({
       ...current,
       activeSectionId: current.activeSectionId === sectionId ? null : sectionId,
     }));
-  };
+  }, []);
 
-  const registerEditorSectionRef =
+  const registerEditorSectionRef = useCallback(
     (sectionId: ManagedSectionId) => (element: HTMLElement | null) => {
       editorSectionRefs.current[sectionId] = element;
-    };
+    },
+    [],
+  );
 
-  const activateSectionFromPreview = (sectionId: ManagedSectionId) => {
+  const activateSectionFromPreview = useCallback((sectionId: ManagedSectionId) => {
     setUiState((current) => ({ ...current, activeSectionId: sectionId }));
 
     const container = editorContainerRef.current;
@@ -113,9 +117,9 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
 
     const nextTop = target.offsetTop - 10;
     container.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
-  };
+  }, []);
 
-  const handleMoveSection = (sectionId: ManagedSectionId, direction: "up" | "down") => {
+  const handleMoveSection = useCallback((sectionId: ManagedSectionId, direction: "up" | "down") => {
     setUiState((current) => {
       const currentIndex = current.sectionConfigs.findIndex((item) => item.id === sectionId);
       const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
@@ -134,9 +138,9 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
         sectionConfigs: reorderSection(current.sectionConfigs, sectionId, targetSectionId),
       };
     });
-  };
+  }, []);
 
-  const handleToggleSectionVisibility = (sectionId: ManagedSectionId) => {
+  const handleToggleSectionVisibility = useCallback((sectionId: ManagedSectionId) => {
     if (sectionId === "profile") {
       return;
     }
@@ -152,7 +156,7 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
 
       return { activeSectionId: nextActive, sectionConfigs: nextConfigs };
     });
-  };
+  }, []);
 
   return (
     <main className="page-shell page-shell--workspace">

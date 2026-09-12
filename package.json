@@ -1,5 +1,6 @@
 {
   "name": "minimal-resume",
+  "description": "极简历：可视化、极简风格的多页面简历制作工具",
   "private": true,
   "version": "0.0.1",
   "license": "UNLICENSED",
@@ -7,7 +8,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "react": "^19.1.0",
