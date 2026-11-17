@@ -201,6 +201,13 @@
   gap: 6px;
 }
 
+.resume-entry__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .resume-entry__title { display: flex; flex-wrap: wrap; gap: 6px; }
 .resume-entry__title strong { font-size: 16px; }
 .resume-entry__title span,
