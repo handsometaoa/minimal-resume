@@ -30,6 +30,8 @@ export interface FlowBlock {
   itemGap?: number;
   /** 从第几个列表项开始渲染（拆分余量块 > 0） */
   renderFrom?: number;
+  /** 翻页重试标记：新页首项仍放不下时强制放置一项，保证分页推进 */
+  forceFirst?: boolean;
 }
 
 export type FlowPiece =
@@ -156,7 +158,8 @@ export const packFlowPages = (input: PackInput): FlowPage[] => {
   // 但至少保证标题后面跟着一行内容，不孤悬页尾。
   const blockMinHeight = (block: FlowBlock): number => {
     if (block.items && block.items.length) {
-      return itemHeights[block.items[0].key] ?? FALLBACK_ITEM_HEIGHT;
+      const firstIdx = Math.min(block.renderFrom ?? 0, block.items.length - 1);
+      return itemHeights[block.items[firstIdx].key] ?? FALLBACK_ITEM_HEIGHT;
     }
     return heights[block.key] ?? FALLBACK_BLOCK_HEIGHT;
   };
@@ -178,9 +181,17 @@ export const packFlowPages = (input: PackInput): FlowPage[] => {
 
   const pending: FlowBlock[] = [];
   let index = 0;
+  // 防御性上限：正常分页远达不到；异常情况下截断渲染而非耗尽内存
+  const MAX_ITERATIONS = 100000;
+  let iterations = 0;
 
   let block: FlowBlock | undefined = pending.shift() ?? blocks[index++];
   while (block) {
+    iterations += 1;
+    if (iterations > MAX_ITERATIONS) {
+      break;
+    }
+
     if (cur.height === 0 && cur.pieces.length === 0 && block.kind === "content" && block.entryId) {
       placeRepeatHeader(block);
     }
@@ -189,35 +200,42 @@ export const packFlowPages = (input: PackInput): FlowPage[] => {
     const sb = effectiveSpaceBefore(block);
 
     if (block.items && block.items.length) {
-      // 可拆分列表：尽量多装整项
+      // 可拆分列表：从 renderFrom 起尽量多装整项（续块必须从余量起点计数，
+      // 否则 renderFrom 会越过数组末尾，切片为空、无法推进，导致死循环）
       const gap = block.itemGap ?? 0;
       const renderFrom = block.renderFrom ?? 0;
+      const remaining = block.items.length - renderFrom;
       const available = maxContentHeight - cur.height - sb;
       let used = 0;
       let count = 0;
-      for (const item of block.items) {
+      for (let i = renderFrom; i < block.items.length; i += 1) {
+        const item = block.items[i];
         const need = used + (count > 0 ? gap : 0) + (itemHeights[item.key] ?? FALLBACK_ITEM_HEIGHT);
-        if (need > available && count > 0) break;
+        if (need > available) break;
         used = need;
         count += 1;
       }
 
-      if (count === block.items.length) {
+      if (count === remaining) {
+        // 余下整项全部装得下：本块收尾，不再续块
         placeListPart(block, renderFrom, renderFrom + count, sb, used);
       } else if (count === 0) {
-        if (cur.height > 0 && cur.pieces.length > 0) {
+        if (cur.height > 0 && !block.forceFirst) {
+          // 本页装不下首项：翻页重试一次；若新页仍放不下则强制放置单项
           startNewPage();
-          pending.unshift({ ...block, spaceBefore: 0 });
+          pending.unshift({ ...block, spaceBefore: 0, forceFirst: true });
         } else {
           // 页顶仍放不下第一项（单项超页）：强制放一项，其余继续
-          const firstHeight = itemHeights[block.items[0].key] ?? FALLBACK_ITEM_HEIGHT;
+          const firstHeight = itemHeights[block.items[renderFrom].key] ?? FALLBACK_ITEM_HEIGHT;
           placeListPart(block, renderFrom, renderFrom + 1, sb, firstHeight);
-          if (block.items.length > 1) {
+          if (remaining > 1) {
             pending.unshift({
               ...block,
               key: `${block.key}@rest${renderFrom + 1}`,
               spaceBefore: 0,
               renderFrom: renderFrom + 1,
+              items: block.items,
+              forceFirst: false,
             });
           }
         }
@@ -229,6 +247,7 @@ export const packFlowPages = (input: PackInput): FlowPage[] => {
           spaceBefore: 0,
           renderFrom: renderFrom + count,
           items: block.items,
+          forceFirst: false,
         });
       }
     } else if (block.keepWithNext) {
