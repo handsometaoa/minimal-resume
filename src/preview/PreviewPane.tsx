@@ -372,7 +372,11 @@ export const PreviewPane = ({
     }
 
     const updateScale = () => {
-      const available = Math.max(320, Math.floor(node.clientWidth - 24));
+      // clientWidth 含内边距；扣除后为纸张可用宽度
+      const style = window.getComputedStyle(node);
+      const padding =
+        (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
+      const available = Math.max(320, Math.floor(node.clientWidth - padding));
       setDisplayScale(Math.min(1, available / PAGE_WIDTH_PX));
     };
 
@@ -436,16 +440,21 @@ export const PreviewPane = ({
   };
 
   return (
-    <section className="preview-shell">
-      <div ref={previewContainerRef} className="preview-canvas">
-        <div className="preview-pages">
+    <section className="relative flex min-h-0 min-w-0 flex-1 print:block">
+      <div
+        ref={previewContainerRef}
+        className="bg-dots min-h-0 w-full flex-1 overflow-y-auto bg-muted/50 px-4 py-6 dark:bg-card/30 lg:px-8 print:overflow-visible print:bg-none print:bg-white print:p-0"
+      >
+        <div className="preview-pages mx-auto flex w-fit flex-col items-center gap-8 print:block print:w-auto">
           {pages.map((page, index) => (
             <article
               key={`page-${index}`}
               className="resume-page-sheet"
               style={{ width: `${PAGE_WIDTH_PX * displayScale}px` }}
             >
-              <div className="resume-page-sheet__meta">{buildPageLabel(language, index)}</div>
+              <div className="resume-page-sheet__meta pb-1 text-[11px] uppercase tracking-[0.12em] text-muted-foreground print:hidden">
+                {buildPageLabel(language, index)}
+              </div>
               <div className="resume-page-frame">
                 <div
                   className={pageClassName}

@@ -1,0 +1,362 @@
+/* ===================================================================
+   简历纸面样式：与 A4 分页/打印几何强相关，保持原生 CSS（不用 Tailwind）。
+   纸面永远白底黑字，不随外壳深色模式翻转。
+   注：纸面排版保持项目原版设计（竖线分隔、灰底模块栏、圆点列表、
+   左对齐正文、UA 级标题层级），仅做必要的 preflight 兼容声明。
+   在 index.css（tailwind）之后、主题文件之前引入。
+   =================================================================== */
+
+/* ---- 页面骨架：预览纸张卡片 ---- */
+
+.resume-page-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* A4 等比缩放容器：内部页面始终按真实打印尺寸（794px = 210mm）布局 */
+.resume-page-frame {
+  width: 100%;
+  aspect-ratio: 210 / 297;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+}
+
+.resume-page-frame .resume-page {
+  max-width: none;
+  box-shadow: none;
+  transform-origin: top left;
+}
+
+.resume-page {
+  position: relative;
+  width: var(--page-width, 820px);
+  max-width: 100%;
+  margin: 0 auto;
+  padding:
+    var(--page-padding-top, 44px)
+    var(--page-padding-right, 40px)
+    var(--page-padding-bottom, 40px)
+    var(--page-padding-left, 40px);
+  box-sizing: border-box;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  color: #000;
+
+  --body-size: 14px;
+  --block-gap: 10px;
+  --heading-size: 38px;
+  --info-line-height: 1.75;
+  --section-spacing: 18px;
+  --accent-color: #6b7280;
+  --section-fill: linear-gradient(90deg, #ededed 0%, #f6f6f6 100%);
+
+  /* 打印时强制保留背景色块（模块栏/主题色），无需手动勾选"背景图形" */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.density-compact { --body-size: 13px; --block-gap: 8px; }
+.density-balanced { --body-size: 14px; --block-gap: 10px; }
+.density-airy { --body-size: 15px; --block-gap: 14px; }
+
+.resume-page,
+.resume-page p,
+.resume-page li,
+.resume-page span {
+  font-size: var(--body-size);
+  line-height: var(--info-line-height);
+}
+
+.resume-page__pattern {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 38%;
+  pointer-events: none;
+  opacity: 0.48;
+}
+
+.resume-page__pattern span {
+  position: absolute;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+}
+
+.resume-page__pattern span:nth-child(1) { width: 180px; height: 180px; top: 24px; right: 24px; }
+.resume-page__pattern span:nth-child(2) { width: 250px; height: 250px; top: 118px; right: -12px; }
+.resume-page__pattern span:nth-child(3) { width: 340px; height: 340px; top: -72px; right: 74px; }
+
+/* ---- 页眉：姓名 / 联系方式 / 个人简介 ---- */
+
+.resume-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* 姓名区左右布局：文字居左，头像靠右（原版行为） */
+.resume-header__title-block {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.resume-header__title-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.resume-header h1 {
+  margin: 0;
+  font-size: var(--heading-size);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: normal;
+  color: #111;
+}
+
+.resume-header__title {
+  margin: 8px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent-color);
+}
+
+.resume-avatar {
+  width: 88px;
+  height: 112px;
+  display: grid;
+  place-items: center;
+  object-fit: cover;
+  background: #f2f4f7;
+  color: #667085;
+}
+
+.resume-page--avatar-square .resume-avatar { border-radius: 2px; }
+.resume-page--avatar-rounded .resume-avatar { border-radius: 18px; }
+
+.resume-info-row {
+  display: flex;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  line-height: 1.5;
+  color: #222;
+}
+
+/* 基本信息行的行距比正文更紧（覆盖全局 --info-line-height） */
+.resume-info-row span {
+  line-height: 1.5;
+}
+
+.resume-info-row span + span::before {
+  content: "|";
+  margin-right: 10px;
+  color: #8b8b8b;
+}
+
+.resume-summary {
+  margin: 6px 0 0;
+  max-width: 100%;
+  color: #374151;
+  text-align: left;
+}
+
+/* ---- 流式分页块 ---- */
+
+/* 流式分页的块容器：flow-root 包含内部外边距，间距由引擎显式控制 */
+.resume-block {
+  position: relative;
+  z-index: 1;
+  display: flow-root;
+  cursor: pointer;
+}
+
+.resume-section__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 6px 14px 6px 0;
+  background: var(--section-fill);
+}
+
+.resume-section__marker { width: 5px; height: 28px; background: #111; }
+.resume-section__bar h3 { margin: 0; font-size: 18px; font-weight: 700; color: #111; }
+
+.resume-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.resume-entry__title { display: flex; flex-wrap: wrap; gap: 6px; }
+.resume-entry__title strong { font-size: 16px; }
+.resume-entry__title span,
+.resume-entry__date,
+.resume-entry__location { color: #444; }
+.resume-entry__date { white-space: nowrap; }
+.resume-entry p,
+.resume-entry ul { margin: 0; }
+.resume-entry ul { padding-left: 18px; list-style: disc; }
+.resume-entry li + li { margin-top: 2px; }
+
+/* ---- Markdown 正文（保持原版：UA 级标题层级、圆点列表、无下划线链接） ---- */
+
+.markdown-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #374151;
+}
+
+.markdown-content p,
+.markdown-content ul,
+.markdown-content ol,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5 {
+  margin: 0;
+}
+
+/* 对齐浏览器 UA 默认标题外观（tailwind preflight 会重置，需显式声明） */
+.markdown-content h3 { font-size: 1.17em; font-weight: 700; }
+.markdown-content h4 { font-size: 1em; font-weight: 700; }
+.markdown-content h5 { font-size: 0.83em; font-weight: 700; }
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 20px;
+}
+
+.markdown-content ul { list-style: disc; }
+.markdown-content ol { list-style: decimal; }
+
+.markdown-content li + li {
+  margin-top: 4px;
+}
+
+.markdown-content a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.markdown-content code {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  font-size: 0.92em;
+}
+
+.resume-skill-item { display: flex; gap: 10px; align-items: baseline; }
+.resume-skill-item strong::after { content: ":"; }
+
+/* ---- 测量层：与真实页面同构，供分页引擎量高 ---- */
+
+.resume-measure-layer {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.resume-measure-frame {
+  position: absolute;
+  left: -99999px;
+  top: 0;
+}
+
+/* 测量包装层用 flow-root 包含子元素外边距（margin 不再折叠穿透），
+   使 offsetHeight 反映真实占位高度 */
+.resume-measure-frame .resume-block {
+  display: flow-root;
+}
+
+/* ---- 打印：@page + 纸张几何重置（外壳由 JSX 的 print:hidden 隐藏） ---- */
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    min-height: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    background: #fff !important;
+  }
+
+  #root {
+    background: #fff;
+  }
+
+  .preview-pages {
+    display: block;
+  }
+
+  .resume-page-sheet {
+    display: block;
+    width: 210mm !important;
+    margin: 0;
+    padding: 0;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .resume-page-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .resume-page-sheet__meta,
+  .resume-measure-layer,
+  /* 弹窗与 toast 不进入打印输出 */
+  [data-slot="dialog-portal"],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  .resume-page-frame {
+    width: auto !important;
+    height: auto !important;
+    aspect-ratio: auto;
+    overflow: visible;
+    border-radius: 0;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  .resume-page {
+    transform: none !important;
+    width: 210mm !important;
+    max-width: none;
+    margin: 0;
+    padding: 11mm 12mm 10mm 12mm;
+    border-radius: 0;
+    box-shadow: none;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .resume-page__pattern { display: none; }
+  .resume-block { break-inside: avoid; }
+}

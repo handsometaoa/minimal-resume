@@ -1,154 +1,248 @@
-import { NavLink } from "react-router-dom";
-import type { Language } from "../types";
-
-const SHOWCASE_TONES = ["cyan", "green", "black", "blue", "orange", "mint"] as const;
+import { Link, NavLink } from "react-router-dom";
+import { ArrowRight, FileDown, MonitorPlay, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { themePresets } from "../lib/themePresets";
+import type { Language, ThemePreset } from "../types";
 
 const copy = {
   zh: {
-    eyebrow: "MINIMAL RESUME BUILDER",
-    title: "极简历，让简历制作回到清晰与效率",
-    desc: "从模板选择、内容编辑到导出投递，整个流程围绕正式简历交付设计。你只需要专注内容，版式、预览与打印由工作台实时处理。",
-    primary: "选择模板开始制作",
-    secondary: "直接进入工作台",
-    tags: ["中英文模式", "多模板选择", "模块折叠排序", "实时联动预览"],
-    featureTitle: "首页负责建立产品认知",
-    featureDesc: "先说明网站能做什么，再引导用户去模板页选风格、去工作台完成编辑。",
-    featureA: "中英文双语站点",
-    featureADesc: "站点品牌、导航、模板说明与编辑器界面均支持中英文切换。",
-    featureB: "模板先行，再进入制作",
-    featureBDesc: "先比较不同模板的气质和信息层级，再带着模板进入工作台继续完成简历。",
-    featureC: "编辑与预览双向联动",
-    featureCDesc: "点击左侧模块自动定位右侧预览，点击右侧内容也会反向展开对应编辑区域。",
-    featureD: "不强制单页排版",
-    featureDDesc: "预览和导出支持自然分页，更贴近真实求职中的投递场景。",
-    processTitle: "清晰的页面职责",
-    processDesc: "首页建立认知，模板页做选择，工作台负责生产，关于页解释产品理念。",
-    step1: "浏览模板",
-    step1Desc: "先看风格差异，快速锁定最适合当前岗位方向的模板。",
-    step2: "进入工作台编辑",
-    step2Desc: "调整内容、顺序、显隐和版式参数，并实时查看最终效果。",
-    step3: "导出并投递",
-    step3Desc: "确认版式后直接打印或导出 PDF，减少额外排版整理成本。",
+    badge: "免费 · 无需注册 · 数据保存在本地",
+    titleLead: "选一个模板，",
+    titleAccent: "五分钟做好简历",
+    desc: "浏览器里编辑，实时预览 A4 排版，一键导出 PDF。无需注册，数据保存在本地。",
+    primary: "直接开始制作",
+    secondary: "看看模板",
+    steps: ["选模板", "填内容", "导出 PDF"],
+    chipPreview: "实时 A4 预览",
+    chipExport: "一键导出 PDF",
+    sectionTitle: "选择模板",
+    sectionDesc: "六套风格，点击卡片直接进入工作台",
+    start: "开始使用",
+    secondaryLink: "直接进入工作台",
+    about: "关于 极简历",
+    tagline: "为正式求职场景设计的简历工具",
   },
   en: {
-    eyebrow: "MINIMAL RESUME BUILDER",
-    title: "Minimal Resume, built for clear and fast resume production",
-    desc: "From template selection to editing and export, the workflow is designed around producing a polished resume quickly. You focus on content, and the workspace handles layout, preview, and print output.",
-    primary: "Choose a Template",
-    secondary: "Open Workspace",
-    tags: ["Chinese / English", "More Templates", "Collapsible Sections", "Live Synced Preview"],
-    featureTitle: "The home page explains the product clearly",
-    featureDesc: "It establishes what the product does, then routes users to templates for selection and to the workspace for production.",
-    featureA: "Bilingual experience",
-    featureADesc: "Branding, navigation, template copy, and editor interface all switch between Chinese and English.",
-    featureB: "Template-first workflow",
-    featureBDesc: "Users compare visual styles first, then continue editing inside the workspace with the selected template.",
-    featureC: "Two-way sync between editor and preview",
-    featureCDesc: "Selecting a section on either side scrolls and opens the corresponding area automatically.",
-    featureD: "No forced single-page output",
-    featureDDesc: "Preview and export support natural multi-page resumes for realistic application workflows.",
-    processTitle: "Pages with clear responsibilities",
-    processDesc: "Home builds understanding, Templates handles selection, Workspace handles production, and About explains the product logic.",
-    step1: "Browse Templates",
-    step1Desc: "Compare visual styles and pick the layout that fits your target role.",
-    step2: "Edit in Workspace",
-    step2Desc: "Refine content, order, visibility, and layout settings with live preview feedback.",
-    step3: "Export and Apply",
-    step3Desc: "Print or export a polished PDF without extra manual layout cleanup.",
+    badge: "Free · No sign-up · Data stays local",
+    titleLead: "Pick a template, ",
+    titleAccent: "finish your resume in minutes",
+    desc: "Edit in the browser with a live A4 preview and one-click PDF export. No sign-up — your data stays local.",
+    primary: "Start Building",
+    secondary: "Browse Templates",
+    steps: ["Pick a template", "Fill in content", "Export PDF"],
+    chipPreview: "Live A4 preview",
+    chipExport: "One-click PDF",
+    sectionTitle: "Choose a template",
+    sectionDesc: "Six styles — click a card to jump straight into the workspace",
+    start: "Start",
+    secondaryLink: "Open Workspace",
+    about: "About",
+    tagline: "A resume builder for serious job applications",
   },
 } satisfies Record<Language, Record<string, string | string[]>>;
 
-export const HomePage = ({ language }: { language: Language }) => {
-  const labels = copy[language];
-  const tags = labels.tags as string[];
+/** 模板缩略示意：白纸 + 主题色点缀的抽象版式 */
+const MiniPaper = ({ accentColor, className }: { accentColor: string; className?: string }) => (
+  <div
+    className={`aspect-[210/250] rounded-lg border border-zinc-200 bg-white p-4 ${className ?? ""}`}
+  >
+    <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-1.5">
+        <div className="h-2.5 w-20 rounded-sm bg-zinc-700/85" />
+        <div className="h-1.5 w-14 rounded-sm" style={{ backgroundColor: accentColor }} />
+      </div>
+      <div
+        className="h-6 w-4.5 rounded-sm"
+        style={{ backgroundColor: accentColor, opacity: 0.85 }}
+      />
+    </div>
+    <div className="mt-3 flex flex-col gap-1">
+      <div className="h-1 w-full rounded-sm bg-zinc-200" />
+      <div className="h-1 w-3/4 rounded-sm bg-zinc-200" />
+    </div>
+    <div className="mt-3.5 flex items-center gap-1.5">
+      <div className="h-3.5 w-1 rounded-[1px]" style={{ backgroundColor: accentColor }} />
+      <div
+        className="h-3.5 flex-1 rounded-sm"
+        style={{ backgroundColor: accentColor, opacity: 0.1 }}
+      />
+    </div>
+    <div className="mt-2 flex flex-col gap-1.5">
+      <div className="h-1 w-full rounded-sm bg-zinc-200" />
+      <div className="h-1 w-full rounded-sm bg-zinc-200" />
+      <div className="h-1 w-4/5 rounded-sm bg-zinc-200" />
+    </div>
+    <div className="mt-3.5 flex items-center gap-1.5">
+      <div className="h-3.5 w-1 rounded-[1px]" style={{ backgroundColor: accentColor }} />
+      <div
+        className="h-3.5 flex-1 rounded-sm"
+        style={{ backgroundColor: accentColor, opacity: 0.1 }}
+      />
+    </div>
+    <div className="mt-2 flex flex-col gap-1.5">
+      <div className="h-1 w-full rounded-sm bg-zinc-200" />
+      <div className="h-1 w-2/3 rounded-sm bg-zinc-200" />
+    </div>
+  </div>
+);
+
+const accentOf = (id: string) =>
+  themePresets.find((preset) => preset.id === id)?.values.accentColor ?? "#2563eb";
+
+/** hero 右侧：三张扇形排开的迷你纸张 */
+const HeroVisual = ({ language }: { language: Language }) => {
+  const chips = [
+    { icon: <MonitorPlay className="size-3" />, text: copy[language].chipPreview },
+    { icon: <FileDown className="size-3" />, text: copy[language].chipExport },
+  ];
 
   return (
-    <main className="page-shell">
-      <section className="marketing-hero landing-hero landing-hero--showcase">
-        <div className="landing-hero__content">
-          <p className="landing-eyebrow">{labels.eyebrow}</p>
-          <h1>{labels.title}</h1>
-          <p className="landing-copy">{labels.desc}</p>
-          <div className="landing-actions">
-            <NavLink className="landing-primary" to="/templates">
-              {labels.primary}
-            </NavLink>
-            <NavLink className="landing-secondary" to="/workspace">
-              {labels.secondary}
-            </NavLink>
-          </div>
-          <div className="hero-highlight">
-            {tags.map((tag) => (
-              <span key={tag}>{tag}</span>
-            ))}
-          </div>
-        </div>
+    <div className="relative mx-auto hidden h-[400px] w-full max-w-md select-none lg:block" aria-hidden="true">
+      <div className="absolute left-0 top-16 w-[52%] -rotate-6">
+        <MiniPaper accentColor={accentOf("creative")} className="shadow-lg" />
+      </div>
+      <div className="absolute right-0 top-14 w-[52%] rotate-6">
+        <MiniPaper accentColor={accentOf("executive")} className="shadow-lg" />
+      </div>
+      <div className="absolute left-1/2 top-2 z-10 w-[56%] -translate-x-1/2">
+        <MiniPaper accentColor={accentOf("tech")} className="shadow-2xl" />
+      </div>
+      <span className="absolute -left-2 bottom-8 z-20 flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-medium shadow-md">
+        <span className="text-primary">{chips[0].icon}</span>
+        {chips[0].text}
+      </span>
+      <span className="absolute -right-1 top-6 z-20 flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-medium shadow-md">
+        <span className="text-primary">{chips[1].icon}</span>
+        {chips[1].text}
+      </span>
+    </div>
+  );
+};
 
-        <div className="resume-showcase" aria-hidden="true">
-          {SHOWCASE_TONES.map((tone) => (
-            <article key={tone} className={`resume-showcase__card resume-showcase__card--${tone}`}>
-              <div className="resume-showcase__card-header" />
-              <div className="resume-showcase__line resume-showcase__line--long" />
-              <div className="resume-showcase__line" />
-              <div className="resume-showcase__grid">
-                <span />
-                <span />
-              </div>
-            </article>
+const TemplateCard = ({
+  preset,
+  language,
+}: {
+  preset: ThemePreset;
+  language: Language;
+}) => (
+  <NavLink
+    to={`/workspace?theme=${preset.id}`}
+    className="group block overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl hover:ring-1 hover:ring-primary/45"
+  >
+    <div className="px-5 pt-5">
+      <MiniPaper accentColor={preset.values.accentColor} className="shadow-sm" />
+    </div>
+    <div className="flex items-start justify-between gap-3 px-4 pb-4 pt-4">
+      <div className="flex flex-col gap-1">
+        <span className="flex items-center gap-2 text-sm font-semibold">
+          <span
+            className="size-2 rounded-full"
+            style={{ backgroundColor: preset.values.accentColor }}
+          />
+          {preset.name[language]}
+        </span>
+        <span className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          {preset.description[language]}
+        </span>
+      </div>
+      <span className="mt-0.5 flex shrink-0 items-center gap-1 text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+        {copy[language].start}
+        <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+      </span>
+    </div>
+  </NavLink>
+);
+
+export const HomePage = ({ language }: { language: Language }) => {
+  const labels = copy[language];
+  const steps = labels.steps as string[];
+
+  const scrollToTemplates = () => {
+    document.getElementById("templates")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  return (
+    <main className="flex flex-1 flex-col">
+      {/* hero：左文案 + 右视觉，品牌蓝辉光与点阵 */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-80 bg-brand-glow" aria-hidden="true" />
+        <div
+          className="absolute inset-0 bg-dots opacity-70 [mask-image:radial-gradient(65%_65%_at_50%_15%,black,transparent)]"
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto grid w-full max-w-6xl gap-10 px-4 pb-14 pt-12 sm:pt-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:pb-20 lg:pt-20">
+          <div className="flex flex-col items-start gap-5">
+            <span className="inline-flex items-center gap-1.5 rounded-full border bg-card/80 px-3 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
+              <Sparkles className="size-3 text-primary" />
+              {labels.badge}
+            </span>
+            <h1 className="text-balance text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl">
+              {labels.titleLead}
+              <span className="text-brand-gradient">{labels.titleAccent}</span>
+            </h1>
+            <p className="max-w-lg text-pretty text-sm leading-relaxed text-muted-foreground sm:text-base">
+              {labels.desc}
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button size="lg" className="shadow-md shadow-primary/25" asChild>
+                <Link to="/workspace">
+                  <Sparkles className="size-4" />
+                  {labels.primary}
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" onClick={scrollToTemplates}>
+                {labels.secondary}
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {steps.map((step, index) => (
+                <span key={step} className="flex items-center gap-2">
+                  {index > 0 ? <span className="text-border">→</span> : null}
+                  <span className="flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1">
+                    <span className="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                      {index + 1}
+                    </span>
+                    {step}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <HeroVisual language={language} />
+        </div>
+      </section>
+
+      {/* 模板直选 */}
+      <section id="templates" className="mx-auto w-full max-w-6xl scroll-mt-20 px-4 pb-16">
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-2xl font-bold tracking-tight">{labels.sectionTitle}</h2>
+          <p className="text-sm text-muted-foreground">{labels.sectionDesc}</p>
+        </div>
+        <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {themePresets.map((preset) => (
+            <TemplateCard key={preset.id} preset={preset} language={language} />
           ))}
         </div>
-      </section>
-
-      <section className="site-section">
-        <div className="site-section__heading">
-          <p className="landing-eyebrow">FEATURES</p>
-          <h2>{labels.featureTitle}</h2>
-          <p>{labels.featureDesc}</p>
-        </div>
-        <div className="feature-grid feature-grid--home">
-          <article className="feature-card feature-card--highlight">
-            <h3>{labels.featureA}</h3>
-            <p>{labels.featureADesc}</p>
-          </article>
-          <article className="feature-card">
-            <h3>{labels.featureB}</h3>
-            <p>{labels.featureBDesc}</p>
-          </article>
-          <article className="feature-card">
-            <h3>{labels.featureC}</h3>
-            <p>{labels.featureCDesc}</p>
-          </article>
-          <article className="feature-card">
-            <h3>{labels.featureD}</h3>
-            <p>{labels.featureDDesc}</p>
-          </article>
+        <div className="mt-8 flex justify-center">
+          <Link
+            to="/workspace"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+          >
+            {labels.secondaryLink}
+            <ArrowRight className="size-3.5" />
+          </Link>
         </div>
       </section>
 
-      <section className="site-section">
-        <div className="site-section__heading">
-          <p className="landing-eyebrow">PROCESS</p>
-          <h2>{labels.processTitle}</h2>
-          <p>{labels.processDesc}</p>
+      <footer className="mt-auto border-t bg-card/60">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 text-xs text-muted-foreground">
+          <span>{labels.tagline}</span>
+          <Link to="/about" className="underline-offset-4 hover:text-primary hover:underline">
+            {labels.about}
+          </Link>
         </div>
-        <div className="step-grid">
-          <article className="step-card">
-            <span>01</span>
-            <h3>{labels.step1}</h3>
-            <p>{labels.step1Desc}</p>
-          </article>
-          <article className="step-card">
-            <span>02</span>
-            <h3>{labels.step2}</h3>
-            <p>{labels.step2Desc}</p>
-          </article>
-          <article className="step-card">
-            <span>03</span>
-            <h3>{labels.step3}</h3>
-            <p>{labels.step3Desc}</p>
-          </article>
-        </div>
-      </section>
+      </footer>
     </main>
   );
 };

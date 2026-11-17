@@ -1,10 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Printer } from "lucide-react";
+import { toast } from "sonner";
 import { EditorPane } from "../editor/EditorPane";
 import { defaultSectionConfigs, reorderSection } from "../lib/sectionConfigs";
 import { getThemePreset, isThemeId } from "../lib/themePresets";
 import { PreviewPane } from "../preview/PreviewPane";
 import { ResumeStateProvider, useResumeState } from "../state/resumeState";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { BrandMark, LanguageSwitch, ModeSwitch } from "@/components/shell-controls";
 import type { Language, ManagedSectionId, SectionConfig } from "../types";
 
 const UI_STORAGE_KEY = "minimal-resume:ui";
@@ -16,40 +30,45 @@ interface StoredUiState {
 
 const pageCopy = {
   zh: {
-    back: "返回模板页",
+    back: "返回选模板",
     sample: "载入示例",
     clear: "清空内容",
     export: "导出 PDF",
+    clearConfirmTitle: "清空全部内容？",
+    clearConfirmBody: "将恢复为空白简历（保留当前模板与版式设置），此操作不可撤销。",
+    cancel: "取消",
+    confirmClear: "确认清空",
     embeddedHint:
       "内嵌浏览器无法直接打印，已复制本页地址。请在 Edge / Chrome 中打开后点击“导出 PDF”。",
     embeddedHintFallback: "内嵌浏览器无法直接打印，请复制地址栏链接到 Edge / Chrome 打开后导出。",
-    gotIt: "知道了",
     printTipTitle: "打印设置提醒",
     printTipTarget: "目标选择“另存为 PDF”",
     printTipMargins: "边距选择“无”（页面已内置 A4 版式边距）",
-    printTipBackground: "展开“更多设置”，勾选“背景图形”——否则模块标题色块与主题色不会出现在 PDF 中",
+    printTipBackground: "若 PDF 缺少色块，展开“更多设置”勾选“背景图形”",
     printTipScale: "缩放保持“默认”，不要选“适合页面宽度”",
     continuePrint: "继续打印",
-    cancel: "取消",
   },
   en: {
     back: "Back to Templates",
     sample: "Load Sample",
     clear: "Clear",
     export: "Export PDF",
+    clearConfirmTitle: "Clear all content?",
+    clearConfirmBody:
+      "This restores a blank resume (keeping the current template and layout settings) and cannot be undone.",
+    cancel: "Cancel",
+    confirmClear: "Clear",
     embeddedHint:
       "The embedded browser cannot print directly. The page link is copied — open it in Edge / Chrome and export there.",
     embeddedHintFallback:
       "The embedded browser cannot print directly. Copy the address into Edge / Chrome and export there.",
-    gotIt: "OK",
     printTipTitle: "Print settings reminder",
     printTipTarget: "Set the destination to “Save as PDF”",
     printTipMargins: "Set margins to “None” (A4 layout margins are built in)",
     printTipBackground:
-      "Expand “More settings” and enable “Background graphics”, otherwise section bars and accent colors will be missing",
+      "If colors are missing in the PDF, expand “More settings” and enable “Background graphics”",
     printTipScale: "Keep scale “Default”; do not use “Fit to page width”",
     continuePrint: "Continue to Print",
-    cancel: "Cancel",
   },
 } satisfies Record<Language, Record<string, string>>;
 
@@ -98,7 +117,8 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
   const editorSectionRefs = useRef<Partial<Record<ManagedSectionId, HTMLElement | null>>>({});
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [{ activeSectionId, sectionConfigs }, setUiState] = useState(loadUiState);
-  const [hint, setHint] = useState<"none" | "embedded-copied" | "embedded-fallback" | "print-settings">("none");
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const copy = pageCopy[language];
 
   useEffect(() => {
@@ -123,10 +143,25 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
   );
 
   const activateSection = useCallback((sectionId: ManagedSectionId) => {
-    setUiState((current) => ({
-      ...current,
-      activeSectionId: current.activeSectionId === sectionId ? null : sectionId,
-    }));
+    const target = editorSectionRefs.current[sectionId];
+    const container = editorContainerRef.current;
+    // 展开一节会收起上一节，上方内容高度变化会让视口跳到内容尾部；
+    // 记录标题点击前的视口位置，DOM 更新后按偏移补偿 scrollTop，保持标题原位
+    const beforeTop = target?.getBoundingClientRect().top ?? null;
+
+    flushSync(() => {
+      setUiState((current) => ({
+        ...current,
+        activeSectionId: current.activeSectionId === sectionId ? null : sectionId,
+      }));
+    });
+
+    if (target && container && beforeTop !== null) {
+      const delta = target.getBoundingClientRect().top - beforeTop;
+      if (Math.abs(delta) > 1) {
+        container.scrollTop += delta;
+      }
+    }
   }, []);
 
   const registerEditorSectionRef = useCallback(
@@ -137,7 +172,10 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
   );
 
   const activateSectionFromPreview = useCallback((sectionId: ManagedSectionId) => {
-    setUiState((current) => ({ ...current, activeSectionId: sectionId }));
+    // 先同步提交展开，再基于更新后的布局滚动定位，避免按旧布局滚动到内容尾部
+    flushSync(() => {
+      setUiState((current) => ({ ...current, activeSectionId: sectionId }));
+    });
 
     const container = editorContainerRef.current;
     const target = editorSectionRefs.current[sectionId];
@@ -145,8 +183,11 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
       return;
     }
 
-    const nextTop = target.offsetTop - 10;
-    container.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+    const delta = target.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    container.scrollTo({
+      top: Math.max(0, container.scrollTop + delta - 10),
+      behavior: "smooth",
+    });
   }, []);
 
   const handleMoveSection = useCallback((sectionId: ManagedSectionId, direction: "up" | "down") => {
@@ -191,7 +232,7 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
   const handleExportPdf = useCallback(async () => {
     if (!isEmbeddedWebview()) {
       // 先展示打印设置提醒（背景图形等），用户确认后再调起打印
-      setHint("print-settings");
+      setPrintDialogOpen(true);
       return;
     }
 
@@ -204,101 +245,73 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
       copied = false;
     }
     window.open(window.location.href, "_blank");
-    setHint(copied ? "embedded-copied" : "embedded-fallback");
-  }, []);
+    toast(copied ? copy.embeddedHint : copy.embeddedHintFallback, { duration: 10000 });
+  }, [copy.embeddedHint, copy.embeddedHintFallback]);
 
   const handleContinuePrint = useCallback(() => {
-    setHint("none");
-    window.print();
+    setPrintDialogOpen(false);
+    // 等弹窗关闭（含退出动画）后再调起打印，避免把弹窗打进 PDF
+    window.setTimeout(() => window.print(), 250);
   }, []);
 
-  // 弹窗打开期间支持 Esc 关闭
-  useEffect(() => {
-    if (hint !== "print-settings") {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setHint("none");
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [hint]);
+  const printTips = [
+    copy.printTipTarget,
+    copy.printTipMargins,
+    copy.printTipBackground,
+    copy.printTipScale,
+  ];
 
   return (
-    <main className="page-shell page-shell--workspace">
-      <section className="workspace-section">
-        <div className="workspace-utilitybar panel">
-          <Link to="/templates" className="landing-secondary workspace-backlink">
-            {copy.back}
-          </Link>
-          <div className="workspace-toolbar">
-            <button type="button" className="secondary-button" onClick={loadSample}>
-              {copy.sample}
-            </button>
-            <button type="button" className="ghost-button" onClick={clearResume}>
-              {copy.clear}
-            </button>
-            <button type="button" className="primary-button" onClick={handleExportPdf}>
-              {copy.export}
-            </button>
-          </div>
+    <main className="flex flex-col lg:h-dvh lg:overflow-hidden print:block print:h-auto print:overflow-visible">
+      <header className="app-chrome flex h-14 shrink-0 items-center justify-between gap-2 border-b bg-card/70 px-3 backdrop-blur print:hidden">
+        <div className="flex min-w-0 items-center gap-2">
+          <BrandMark language={language} />
+          <Separator orientation="vertical" className="mx-1 h-5" />
+          <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
+            <Link to="/">
+              <ArrowLeft className="size-3.5" />
+              {copy.back}
+            </Link>
+          </Button>
         </div>
-
-        {(hint === "embedded-copied" || hint === "embedded-fallback") && (
-          <div className="workspace-utilitybar panel workspace-printhint">
-            <span>{hint === "embedded-copied" ? copy.embeddedHint : copy.embeddedHintFallback}</span>
-            <button type="button" className="ghost-button" onClick={() => setHint("none")}>
-              {copy.gotIt}
-            </button>
-          </div>
-        )}
-
-        {hint === "print-settings" ? (
-          <div
-            className="modal-overlay"
-            role="dialog"
-            aria-modal="true"
-            aria-label={copy.printTipTitle}
-            onClick={(event) => {
-              if (event.target === event.currentTarget) {
-                setHint("none");
-              }
-            }}
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={loadSample}>
+            {copy.sample}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-destructive"
+            onClick={() => setClearDialogOpen(true)}
           >
-            <div className="workspace-printmodal">
-              <h2>{copy.printTipTitle}</h2>
-              <ul>
-                <li>{copy.printTipTarget}</li>
-                <li>{copy.printTipMargins}</li>
-                <li>{copy.printTipBackground}</li>
-                <li>{copy.printTipScale}</li>
-              </ul>
-              <div className="inline-actions">
-                <button type="button" className="ghost-button" onClick={() => setHint("none")}>
-                  {copy.cancel}
-                </button>
-                <button type="button" className="primary-button" onClick={handleContinuePrint}>
-                  {copy.continuePrint}
-                </button>
-              </div>
-            </div>
+            {copy.clear}
+          </Button>
+          <Separator orientation="vertical" className="mx-1 h-5" />
+          <div className="hidden items-center gap-2 sm:flex">
+            <LanguageSwitch />
+            <ModeSwitch />
+            <Separator orientation="vertical" className="mx-1 h-5" />
           </div>
-        ) : null}
+          <Button size="sm" onClick={handleExportPdf}>
+            <Printer className="size-3.5" />
+            {copy.export}
+          </Button>
+        </div>
+      </header>
 
-        <div className="app-shell app-shell--workspace-clean">
-          <EditorPane
-            language={language}
-            resume={resume}
-            editorContainerRef={editorContainerRef}
-            registerEditorSectionRef={registerEditorSectionRef}
-            sectionConfigs={sectionConfigs}
-            activeSectionId={activeSectionId}
-            onSectionInteract={activateSection}
-            onMoveSection={handleMoveSection}
-            onToggleSectionVisibility={handleToggleSectionVisibility}
-          />
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row print:block">
+        <EditorPane
+          language={language}
+          resume={resume}
+          editorContainerRef={editorContainerRef}
+          registerEditorSectionRef={registerEditorSectionRef}
+          sectionConfigs={sectionConfigs}
+          activeSectionId={activeSectionId}
+          onSectionInteract={activateSection}
+          onMoveSection={handleMoveSection}
+          onToggleSectionVisibility={handleToggleSectionVisibility}
+        />
+        <div className="flex min-h-0 min-w-0 flex-1 print:block">
           <PreviewPane
             language={language}
             resume={resume}
@@ -307,7 +320,53 @@ const WorkspaceContent = ({ language }: { language: Language }) => {
             onSectionInteract={activateSectionFromPreview}
           />
         </div>
-      </section>
+      </div>
+
+      <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{copy.printTipTitle}</DialogTitle>
+            <DialogDescription>{copy.printTipTarget}</DialogDescription>
+          </DialogHeader>
+          <ul className="flex flex-col gap-1.5 text-sm text-muted-foreground">
+            {printTips.slice(1).map((tip) => (
+              <li key={tip} className="flex gap-2">
+                <span className="text-border">·</span>
+                <span>{tip}</span>
+              </li>
+            ))}
+          </ul>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>
+              {copy.cancel}
+            </Button>
+            <Button onClick={handleContinuePrint}>{copy.continuePrint}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{copy.clearConfirmTitle}</DialogTitle>
+            <DialogDescription>{copy.clearConfirmBody}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClearDialogOpen(false)}>
+              {copy.cancel}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                clearResume();
+                setClearDialogOpen(false);
+              }}
+            >
+              {copy.confirmClear}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 };

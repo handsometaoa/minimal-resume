@@ -1,0 +1,151 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.75rem;
+  /* 品牌蓝主色：贯穿按钮 / 焦点环 / 链接 / 选中态 */
+  --primary: oklch(0.55 0.18 255);
+  --primary-foreground: oklch(0.985 0.005 250);
+  --ring: oklch(0.55 0.18 255);
+  /* 冷灰蓝底色体系 */
+  --background: oklch(0.988 0.005 250);
+  --foreground: oklch(0.21 0.02 258);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.02 258);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.02 258);
+  --secondary: oklch(0.958 0.01 250);
+  --secondary-foreground: oklch(0.3 0.04 258);
+  --muted: oklch(0.958 0.01 250);
+  --muted-foreground: oklch(0.53 0.02 255);
+  --accent: oklch(0.945 0.02 252);
+  --accent-foreground: oklch(0.3 0.06 255);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0.005 250);
+  --border: oklch(0.915 0.012 252);
+  --input: oklch(0.915 0.012 252);
+  /* 品牌渐变两端色（hero / logo / 点缀） */
+  --brand-from: oklch(0.55 0.18 255);
+  --brand-to: oklch(0.58 0.16 285);
+}
+
+.dark {
+  --primary: oklch(0.72 0.14 255);
+  --primary-foreground: oklch(0.16 0.02 258);
+  --ring: oklch(0.72 0.14 255);
+  --background: oklch(0.165 0.014 258);
+  --foreground: oklch(0.965 0.005 250);
+  --card: oklch(0.21 0.016 258);
+  --card-foreground: oklch(0.965 0.005 250);
+  --popover: oklch(0.21 0.016 258);
+  --popover-foreground: oklch(0.965 0.005 250);
+  --secondary: oklch(0.265 0.018 258);
+  --secondary-foreground: oklch(0.965 0.005 250);
+  --muted: oklch(0.265 0.018 258);
+  --muted-foreground: oklch(0.68 0.02 252);
+  --accent: oklch(0.28 0.025 258);
+  --accent-foreground: oklch(0.965 0.005 250);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0.005 250);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --brand-from: oklch(0.72 0.14 255);
+  --brand-to: oklch(0.72 0.13 285);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans:
+    "Segoe UI", -apple-system, "Helvetica Neue", Arial, "PingFang SC",
+    "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 22%, transparent);
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* 品牌渐变：logo / hero 点缀 / 主按钮 hover */
+  .bg-brand-gradient {
+    background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  }
+
+  /* hero 标题渐变文字 */
+  .text-brand-gradient {
+    background-image: linear-gradient(120deg, var(--brand-from), var(--brand-to));
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  /* hero / 预览台面点阵纹理 */
+  .bg-dots {
+    background-image: radial-gradient(
+      color-mix(in oklab, var(--primary) 14%, transparent) 1.2px,
+      transparent 1.2px
+    );
+    background-size: 20px 20px;
+  }
+
+  /* hero 顶部辉光 */
+  .bg-brand-glow {
+    background-image: radial-gradient(
+      60% 60% at 50% 0%,
+      color-mix(in oklab, var(--primary) 14%, transparent),
+      transparent 70%
+    );
+  }
+}

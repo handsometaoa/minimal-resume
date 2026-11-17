@@ -1,4 +1,16 @@
 import { useState, type ChangeEvent } from "react";
+import {
+  Briefcase,
+  FolderKanban,
+  GraduationCap,
+  ImageIcon,
+  LayoutTemplate,
+  Settings2,
+  Upload,
+  User,
+  Wrench,
+  X,
+} from "lucide-react";
 import { useResumeState } from "../state/resumeState";
 import type {
   CollectionKey,
@@ -12,6 +24,20 @@ import type {
   SectionConfig,
   SkillItem,
 } from "../types";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { editorCopy, type EditorCopy } from "./copy";
 import { CollectionSection } from "./CollectionSection";
 import { LabeledField } from "./LabeledField";
@@ -28,6 +54,15 @@ interface EditorPaneProps {
   onMoveSection: (sectionId: ManagedSectionId, direction: "up" | "down") => void;
   onToggleSectionVisibility: (sectionId: ManagedSectionId) => void;
 }
+
+const sectionIcons: Record<ManagedSectionId, React.ReactNode> = {
+  profile: <User className="size-3.5" />,
+  education: <GraduationCap className="size-3.5" />,
+  experience: <Briefcase className="size-3.5" />,
+  projects: <FolderKanban className="size-3.5" />,
+  skills: <Wrench className="size-3.5" />,
+  customSections: <LayoutTemplate className="size-3.5" />,
+};
 
 const renderSectionSubtitle = (
   config: SectionConfig,
@@ -50,6 +85,21 @@ const renderSectionSubtitle = (
   }
 };
 
+const SettingsSwitch = ({
+  label,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) => (
+  <Label className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+    <span className="text-xs font-medium text-muted-foreground">{label}</span>
+    <Switch checked={checked} onCheckedChange={onCheckedChange} />
+  </Label>
+);
+
 export const EditorPane = ({
   language,
   resume,
@@ -71,13 +121,8 @@ export const EditorPane = ({
       dispatch({ type: "update-profile", field, value: event.target.value });
     };
 
-  const updateThemeValue =
-    (field: keyof ResumeData["theme"]) =>
-    (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      const value =
-        event.target instanceof HTMLInputElement && event.target.type === "checkbox"
-          ? event.target.checked
-          : event.target.value;
+  const updateThemeField =
+    (field: keyof ResumeData["theme"]) => (value: string | boolean) => {
       dispatch({ type: "update-theme", field, value });
     };
 
@@ -126,15 +171,23 @@ export const EditorPane = ({
     setAvatarError("");
   };
 
+  const gridTwo = "grid grid-cols-2 gap-x-3 gap-y-3";
+
   return (
-    <aside className="editor-pane">
-      <div ref={editorContainerRef} className="editor-shell">
+    <aside className="app-chrome w-full shrink-0 border-b bg-muted/40 lg:h-full lg:w-[400px] lg:border-r lg:border-b-0 xl:w-[440px] print:hidden">
+      {/* grid 而非 flex：滚动容器内 flex 子项会被压缩，grid 行保持自然高度；
+          overflow-anchor:none 禁用浏览器滚动锚定，由 WorkspacePage 显式补偿滚动 */}
+      <div
+        ref={editorContainerRef}
+        className="grid gap-3 p-3 [overflow-anchor:none] lg:h-full lg:overflow-y-auto"
+      >
         {sectionConfigs.map((config, index) => {
           const isProfileSection = config.id === "profile";
           const isFirstMovableSection = !isProfileSection && index === 1;
           const isLastSection = index === sectionConfigs.length - 1;
           const commonProps = {
             sectionId: config.id,
+            icon: sectionIcons[config.id],
             expanded: activeSectionId === config.id && config.visible,
             hidden: !config.visible,
             registerEditorSectionRef,
@@ -163,68 +216,102 @@ export const EditorPane = ({
                 disableMoveDown
                 hidden={false}
               >
-                <div className="grid-two">
+                <div className={gridTwo}>
                   <LabeledField label={labels.fullName}>
-                    <input value={resume.profile.fullName} onChange={updateProfile("fullName")} />
+                    <Input value={resume.profile.fullName} onChange={updateProfile("fullName")} />
                   </LabeledField>
                   <LabeledField label={labels.title}>
-                    <input value={resume.profile.title} onChange={updateProfile("title")} />
+                    <Input value={resume.profile.title} onChange={updateProfile("title")} />
                   </LabeledField>
                   <LabeledField label={labels.phone}>
-                    <input value={resume.profile.phone} onChange={updateProfile("phone")} />
+                    <Input value={resume.profile.phone} onChange={updateProfile("phone")} />
                   </LabeledField>
                   <LabeledField label={labels.email}>
-                    <input value={resume.profile.email} onChange={updateProfile("email")} />
+                    <Input value={resume.profile.email} onChange={updateProfile("email")} />
                   </LabeledField>
                   <LabeledField label={labels.website}>
-                    <input value={resume.profile.website} onChange={updateProfile("website")} />
+                    <Input value={resume.profile.website} onChange={updateProfile("website")} />
                   </LabeledField>
                   <LabeledField label={labels.location}>
-                    <input value={resume.profile.location} onChange={updateProfile("location")} />
+                    <Input value={resume.profile.location} onChange={updateProfile("location")} />
                   </LabeledField>
                   <LabeledField label={labels.age}>
-                    <input value={resume.profile.age} onChange={updateProfile("age")} />
+                    <Input value={resume.profile.age} onChange={updateProfile("age")} />
                   </LabeledField>
                   <LabeledField label={labels.gender}>
-                    <input value={resume.profile.gender} onChange={updateProfile("gender")} />
+                    <Input value={resume.profile.gender} onChange={updateProfile("gender")} />
                   </LabeledField>
                   <LabeledField label={labels.ethnicity}>
-                    <input value={resume.profile.ethnicity} onChange={updateProfile("ethnicity")} />
+                    <Input value={resume.profile.ethnicity} onChange={updateProfile("ethnicity")} />
                   </LabeledField>
                   <LabeledField label={labels.politicalStatus}>
-                    <input
+                    <Input
                       value={resume.profile.politicalStatus}
                       onChange={updateProfile("politicalStatus")}
                     />
                   </LabeledField>
                   <LabeledField label={labels.currentStatus}>
-                    <input
+                    <Input
                       value={resume.profile.currentStatus}
                       onChange={updateProfile("currentStatus")}
                     />
                   </LabeledField>
                   <LabeledField label={labels.jobIntent}>
-                    <input value={resume.profile.jobIntent} onChange={updateProfile("jobIntent")} />
+                    <Input value={resume.profile.jobIntent} onChange={updateProfile("jobIntent")} />
                   </LabeledField>
                 </div>
                 <LabeledField label={labels.summary} hint={labels.markdownHint}>
-                  <textarea rows={5} value={resume.profile.summary} onChange={updateProfile("summary")} />
+                  <Textarea
+                    rows={5}
+                    value={resume.profile.summary}
+                    onChange={updateProfile("summary")}
+                  />
                 </LabeledField>
-                <LabeledField label={labels.avatarUpload}>
-                  <input type="file" accept="image/*" onChange={handleAvatarUpload} />
-                  <div className="inline-actions">
-                    <button type="button" className="ghost-button" onClick={clearAvatar}>
-                      {labels.avatarClear}
-                    </button>
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {labels.avatarUpload}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border bg-background px-3 text-xs font-medium shadow-xs transition-colors hover:bg-accent">
+                      <Upload className="size-3.5" />
+                      {labels.avatarUpload}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarUpload}
+                      />
+                    </label>
+                    {resume.profile.avatarUrl ? (
+                      <>
+                        <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded border">
+                          <img
+                            src={resume.profile.avatarUrl}
+                            alt={resume.profile.fullName || "avatar"}
+                            className="size-full object-cover"
+                          />
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={labels.avatarClear}
+                          title={labels.avatarClear}
+                          onClick={clearAvatar}
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="flex h-8 w-8 items-center justify-center rounded border border-dashed text-muted-foreground">
+                        <ImageIcon className="size-3.5" />
+                      </span>
+                    )}
                   </div>
-                  {resume.profile.avatarUrl ? (
-                    <div className="avatar-upload-preview">
-                      <span>{labels.avatarPreview}</span>
-                      <img src={resume.profile.avatarUrl} alt={resume.profile.fullName || "avatar"} />
-                    </div>
+                  {avatarError ? (
+                    <small className="text-xs text-destructive">{avatarError}</small>
                   ) : null}
-                  {avatarError ? <small className="field__hint field__hint--error">{avatarError}</small> : null}
-                </LabeledField>
+                </div>
               </SectionCard>
             );
           }
@@ -239,22 +326,29 @@ export const EditorPane = ({
                 addLabel={labels.addEducation}
                 removeLabel={labels.remove}
                 renderFields={(item) => (
-                  <div className="grid-two">
+                  <div className={gridTwo}>
                     <LabeledField label={labels.school}>
-                      <input value={item.school} onChange={bindItem("education", item, "school")} />
+                      <Input value={item.school} onChange={bindItem("education", item, "school")} />
                     </LabeledField>
                     <LabeledField label={labels.degree}>
-                      <input value={item.degree} onChange={bindItem("education", item, "degree")} />
+                      <Input value={item.degree} onChange={bindItem("education", item, "degree")} />
                     </LabeledField>
                     <LabeledField label={labels.major}>
-                      <input value={item.major} onChange={bindItem("education", item, "major")} />
+                      <Input value={item.major} onChange={bindItem("education", item, "major")} />
                     </LabeledField>
                     <LabeledField label={labels.dateRange}>
-                      <input value={item.dateRange} onChange={bindItem("education", item, "dateRange")} />
+                      <Input
+                        value={item.dateRange}
+                        onChange={bindItem("education", item, "dateRange")}
+                      />
                     </LabeledField>
-                    <div className="grid-span-2">
+                    <div className="col-span-2">
                       <LabeledField label={labels.details} hint={labels.markdownHint}>
-                        <textarea rows={4} value={item.details} onChange={bindItem("education", item, "details")} />
+                        <Textarea
+                          rows={4}
+                          value={item.details}
+                          onChange={bindItem("education", item, "details")}
+                        />
                       </LabeledField>
                     </div>
                   </div>
@@ -275,22 +369,35 @@ export const EditorPane = ({
                 removeLabel={labels.remove}
                 renderFields={(item) => (
                   <>
-                    <div className="grid-two">
+                    <div className={gridTwo}>
                       <LabeledField label={labels.company}>
-                        <input value={item.company} onChange={bindItem("experience", item, "company")} />
+                        <Input
+                          value={item.company}
+                          onChange={bindItem("experience", item, "company")}
+                        />
                       </LabeledField>
                       <LabeledField label={labels.role}>
-                        <input value={item.role} onChange={bindItem("experience", item, "role")} />
+                        <Input value={item.role} onChange={bindItem("experience", item, "role")} />
                       </LabeledField>
                       <LabeledField label={labels.location}>
-                        <input value={item.location} onChange={bindItem("experience", item, "location")} />
+                        <Input
+                          value={item.location}
+                          onChange={bindItem("experience", item, "location")}
+                        />
                       </LabeledField>
                       <LabeledField label={labels.dateRange}>
-                        <input value={item.dateRange} onChange={bindItem("experience", item, "dateRange")} />
+                        <Input
+                          value={item.dateRange}
+                          onChange={bindItem("experience", item, "dateRange")}
+                        />
                       </LabeledField>
                     </div>
                     <LabeledField label={labels.workContent} hint={labels.markdownHint}>
-                      <textarea rows={5} value={item.content} onChange={bindItem("experience", item, "content")} />
+                      <Textarea
+                        rows={5}
+                        value={item.content}
+                        onChange={bindItem("experience", item, "content")}
+                      />
                     </LabeledField>
                   </>
                 )}
@@ -310,22 +417,29 @@ export const EditorPane = ({
                 removeLabel={labels.remove}
                 renderFields={(item) => (
                   <>
-                    <div className="grid-two">
+                    <div className={gridTwo}>
                       <LabeledField label={labels.projectName}>
-                        <input value={item.name} onChange={bindItem("projects", item, "name")} />
+                        <Input value={item.name} onChange={bindItem("projects", item, "name")} />
                       </LabeledField>
                       <LabeledField label={labels.role}>
-                        <input value={item.role} onChange={bindItem("projects", item, "role")} />
+                        <Input value={item.role} onChange={bindItem("projects", item, "role")} />
                       </LabeledField>
                       <LabeledField label={labels.dateRange}>
-                        <input value={item.dateRange} onChange={bindItem("projects", item, "dateRange")} />
+                        <Input
+                          value={item.dateRange}
+                          onChange={bindItem("projects", item, "dateRange")}
+                        />
                       </LabeledField>
                       <LabeledField label={labels.link}>
-                        <input value={item.link} onChange={bindItem("projects", item, "link")} />
+                        <Input value={item.link} onChange={bindItem("projects", item, "link")} />
                       </LabeledField>
                     </div>
                     <LabeledField label={labels.projectContent} hint={labels.markdownHint}>
-                      <textarea rows={5} value={item.content} onChange={bindItem("projects", item, "content")} />
+                      <Textarea
+                        rows={5}
+                        value={item.content}
+                        onChange={bindItem("projects", item, "content")}
+                      />
                     </LabeledField>
                   </>
                 )}
@@ -344,12 +458,12 @@ export const EditorPane = ({
                 addLabel={labels.addSkill}
                 removeLabel={labels.remove}
                 renderFields={(item) => (
-                  <div className="grid-two">
+                  <div className={gridTwo}>
                     <LabeledField label={labels.skillName}>
-                      <input value={item.name} onChange={bindItem("skills", item, "name")} />
+                      <Input value={item.name} onChange={bindItem("skills", item, "name")} />
                     </LabeledField>
                     <LabeledField label={labels.skillDetail}>
-                      <input value={item.detail} onChange={bindItem("skills", item, "detail")} />
+                      <Input value={item.detail} onChange={bindItem("skills", item, "detail")} />
                     </LabeledField>
                   </div>
                 )}
@@ -370,10 +484,17 @@ export const EditorPane = ({
               renderFields={(item) => (
                 <>
                   <LabeledField label={labels.customTitle}>
-                    <input value={item.title} onChange={bindItem("customSections", item, "title")} />
+                    <Input
+                      value={item.title}
+                      onChange={bindItem("customSections", item, "title")}
+                    />
                   </LabeledField>
                   <LabeledField label={labels.customContent} hint={labels.markdownHint}>
-                    <textarea rows={4} value={item.content} onChange={bindItem("customSections", item, "content")} />
+                    <Textarea
+                      rows={4}
+                      value={item.content}
+                      onChange={bindItem("customSections", item, "content")}
+                    />
                   </LabeledField>
                 </>
               )}
@@ -382,78 +503,101 @@ export const EditorPane = ({
           );
         })}
 
-        <section className="panel section-card settings-card">
-          <div className="section-card__header">
-            <div className="section-card__heading">
-              <h2>{labels.themeTitle}</h2>
-              <p className="section-card__subtitle">{labels.themeSubtitle}</p>
+        <Card className="gap-0 rounded-lg border py-0">
+          <div className="flex items-center gap-2.5 px-4 py-3">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <Settings2 className="size-3.5" />
+            </span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-semibold">{labels.themeTitle}</span>
+              <span className="text-xs text-muted-foreground">{labels.themeSubtitle}</span>
             </div>
           </div>
-          <div className="section-card__body">
-            <div className="grid-two">
+          <div className="flex flex-col gap-3 border-t px-4 py-4">
+            <div className={gridTwo}>
               <LabeledField label={labels.themeColor}>
-                <input type="color" value={resume.theme.accentColor} onChange={updateThemeValue("accentColor")} />
+                <input
+                  type="color"
+                  value={resume.theme.accentColor}
+                  onChange={(event) => updateThemeField("accentColor")(event.target.value)}
+                  className="h-9 w-full cursor-pointer rounded-md border border-input bg-background px-1"
+                />
               </LabeledField>
               <LabeledField label={labels.density}>
-                <select value={resume.theme.density} onChange={updateThemeValue("density")}>
-                  <option value="compact">{labels.compact}</option>
-                  <option value="balanced">{labels.balanced}</option>
-                  <option value="airy">{labels.airy}</option>
-                </select>
+                <Select
+                  value={resume.theme.density}
+                  onValueChange={updateThemeField("density")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="compact">{labels.compact}</SelectItem>
+                    <SelectItem value="balanced">{labels.balanced}</SelectItem>
+                    <SelectItem value="airy">{labels.airy}</SelectItem>
+                  </SelectContent>
+                </Select>
               </LabeledField>
-              <LabeledField label={labels.headingSize}>
-                <input
-                  type="range"
-                  min="32"
-                  max="44"
-                  step="1"
-                  value={resume.theme.headingSize}
-                  onChange={updateThemeValue("headingSize")}
+              <LabeledField label={`${labels.headingSize} · ${resume.theme.headingSize}px`}>
+                <Slider
+                  min={32}
+                  max={44}
+                  step={1}
+                  value={[Number(resume.theme.headingSize)]}
+                  onValueChange={(values) => updateThemeField("headingSize")(String(values[0]))}
                 />
               </LabeledField>
-              <LabeledField label={labels.lineHeight}>
-                <input
-                  type="range"
-                  min="1.5"
-                  max="2.1"
-                  step="0.05"
-                  value={resume.theme.infoLineHeight}
-                  onChange={updateThemeValue("infoLineHeight")}
+              <LabeledField label={`${labels.lineHeight} · ${resume.theme.infoLineHeight}`}>
+                <Slider
+                  min={1.5}
+                  max={2.1}
+                  step={0.05}
+                  value={[Number(resume.theme.infoLineHeight)]}
+                  onValueChange={(values) =>
+                    updateThemeField("infoLineHeight")(String(values[0]))
+                  }
                 />
               </LabeledField>
-              <LabeledField label={labels.sectionSpacing}>
-                <input
-                  type="range"
-                  min="12"
-                  max="28"
-                  step="1"
-                  value={resume.theme.sectionSpacing}
-                  onChange={updateThemeValue("sectionSpacing")}
+              <LabeledField label={`${labels.sectionSpacing} · ${resume.theme.sectionSpacing}px`}>
+                <Slider
+                  min={12}
+                  max={28}
+                  step={1}
+                  value={[Number(resume.theme.sectionSpacing)]}
+                  onValueChange={(values) =>
+                    updateThemeField("sectionSpacing")(String(values[0]))
+                  }
                 />
               </LabeledField>
               <LabeledField label={labels.avatarStyle}>
-                <select value={resume.theme.avatarStyle} onChange={updateThemeValue("avatarStyle")}>
-                  <option value="square">{labels.square}</option>
-                  <option value="rounded">{labels.rounded}</option>
-                </select>
+                <Select
+                  value={resume.theme.avatarStyle}
+                  onValueChange={updateThemeField("avatarStyle")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="square">{labels.square}</SelectItem>
+                    <SelectItem value="rounded">{labels.rounded}</SelectItem>
+                  </SelectContent>
+                </Select>
               </LabeledField>
             </div>
-            <div className="toggle-grid">
-              <label className="toggle">
-                <input type="checkbox" checked={resume.theme.showAvatar} onChange={updateThemeValue("showAvatar")} />
-                <span>{labels.showAvatar}</span>
-              </label>
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={resume.theme.showDividers}
-                  onChange={updateThemeValue("showDividers")}
-                />
-                <span>{labels.showDividers}</span>
-              </label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <SettingsSwitch
+                label={labels.showAvatar}
+                checked={resume.theme.showAvatar}
+                onCheckedChange={updateThemeField("showAvatar")}
+              />
+              <SettingsSwitch
+                label={labels.showDividers}
+                checked={resume.theme.showDividers}
+                onCheckedChange={updateThemeField("showDividers")}
+              />
             </div>
           </div>
-        </section>
+        </Card>
       </div>
     </aside>
   );
