@@ -22,9 +22,9 @@ https://handsometaoa.github.io/minimal-resume/
 
 ## 预览
 
-| 首页（模板直选） | 工作台（编辑与实时预览） |
-| --- | --- |
-| ![首页预览](docs/preview-home.png) | ![工作台预览](docs/preview-workspace.png) |
+| 工作台（编辑与实时预览） |
+| --- |
+| ![工作台预览](docs/preview-workspace.png) |
 
 | 工作台 · 深色模式 |
 | --- |
